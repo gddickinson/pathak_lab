@@ -1,5 +1,5 @@
-# pathak_lab
- A selection of Python-based tools created to help the Pathak lab (https://www.pathaklab-uci.com/) analyse TIRF recordings of PIEZO1 using flika (https://flika-org.github.io/).
+# Pathak lab PIEZO1 analysis tools
+This repositoryy contains a selection of Python-based tools created to help the Pathak lab (https://www.pathaklab-uci.com/) analyse TIRF recordings of PIEZO1 using flika (https://flika-org.github.io/).
 
 # Code organization 
 The code is split into two sections: 'flika_plugins', containing flika extensions used to visualise and analyse TIRF recordings within flika; and 'flika_scripts', python scripts used to batch process multiple results files.
