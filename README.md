@@ -1,2 +1,2 @@
 # pathak_lab
- Python code created for the Pathak lab to help analyse TIRF recordings of PIEZO1.
+ A selection of Python-based code created to help the Pathak lab (https://www.pathaklab-uci.com/) analyse TIRF recordings of PIEZO1.
