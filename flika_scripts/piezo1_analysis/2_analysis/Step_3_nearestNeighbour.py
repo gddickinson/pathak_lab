@@ -6,23 +6,34 @@ Created on Thu Dec 15 15:13:24 2022
 @author: george
 """
 
+# Suppress warnings
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
+# Import required libraries
 import numpy as np
 import pandas as pd
-
 from tqdm import tqdm
 import os, glob
-
 from sklearn.neighbors import KDTree
 import math
-
 from scipy import stats, spatial
 from matplotlib import pyplot as plt
 
 
+
 def getNearestNeighbors(train,test,k=2):
+    """
+    Find k nearest neighbors for each point in test set from train set.
+
+    Args:
+    train (array): Training data points
+    test (array): Test data points
+    k (int): Number of nearest neighbors to find
+
+    Returns:
+    tuple: Distances and indices of k nearest neighbors
+    """
     tree = KDTree(train, leaf_size=5)
     if k > len(train):
         #no neighbours to count return nan
@@ -35,6 +46,15 @@ def getNearestNeighbors(train,test,k=2):
     return dist, ind
 
 def getNN(tracksDF):
+    """
+    Calculate nearest neighbor distances for each point in the DataFrame.
+
+    Args:
+    tracksDF (DataFrame): DataFrame containing track information
+
+    Returns:
+    DataFrame: Original DataFrame with added nearest neighbor distance column
+    """
     #sort by frame
     tracksDF = tracksDF.sort_values(by=['frame'])
     #make empty list to store NN distances & indexes
@@ -66,6 +86,12 @@ def getNN(tracksDF):
     return tracksDF
 
 def calcNNforFiles(tracksList):
+    """
+    Calculate nearest neighbor distances for a list of track files.
+
+    Args:
+    tracksList (list): List of paths to track files
+    """
     for trackFile in tqdm(tracksList):
 
         ##### load data
@@ -84,6 +110,12 @@ def calcNNforFiles(tracksList):
 
 
 def addNNtoSVMFiles(svmFileList):
+    """
+   Add nearest neighbor information to SVM classification files.
+
+   Args:
+   svmFileList (list): List of paths to SVM classification files
+   """
     for svmFile in tqdm(svmFileList):
         ##### load svm
         svmDF = pd.read_csv(svmFile)
@@ -107,16 +139,18 @@ def addNNtoSVMFiles(svmFileList):
 
 if __name__ == '__main__':
     ##### RUN ANALYSIS
+
+    # Set path to data directory
     path = '/Users/george/Data/MCS_04_20230906_BAPTA_NSC66_5uM_UltraQuiet_FOV56_1'
     #path = '/Users/george/Data/gabby_missingIntensities'
 
-    #get folder paths
+    # Get folder paths for localization files
     tracksList = glob.glob(path + '/**/*_locsID.csv', recursive = True)   #using locs file to measure distances to all detected locs (some removed during linking/feature calc if tracks too short)
 
-    #run analysis
+    # Run nearest neighbor analysis
     calcNNforFiles(tracksList)
 
-    #add nn to SVM files based on id
+    # Add nn to SVM files based on id
     svmFileList = glob.glob(path + '/**/*_SVM-ALL.csv', recursive = True)
     addNNtoSVMFiles(svmFileList)
 

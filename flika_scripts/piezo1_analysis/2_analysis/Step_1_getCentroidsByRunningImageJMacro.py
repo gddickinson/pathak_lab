@@ -6,7 +6,7 @@ Created on Thu Nov  3 16:11:58 2022
 @author: george
 """
 
-###Creates macro to run thunderStorm for a batch of iles in ImageJ - works for >1 file
+# This script creates a macro to run ThunderSTORM for batch processing of files in ImageJ
 
 ####TODO! run macro directly using python
 #pip install pyimagej
@@ -17,14 +17,25 @@ import os
 
 
 def getFileList(path):
-    #get folder paths
-    #files = glob.glob(path + '/**/*_bin10.tif', recursive = True)
-    #files = glob.glob(path + '/**/*_crop100.tif', recursive = True)      # use for cropped files
+    """
+    Get a list of .tif files in the specified directory and its subdirectories.
+
+    Args:
+    path (str): The directory path to search for .tif files
+
+    Returns:
+    tuple: Two strings, one containing comma-separated file paths,
+           and another with corresponding result file paths
+    """
+    # Get all .tif files in the directory and subdirectories
     files = glob.glob(path + '/**/*.tif', recursive = True)
 
-    fileStr = str(files).replace('[', '')
-    fileStr = fileStr.replace(']', '')
+    # Convert list of files to comma-separated string
+    fileStr = str(files).replace('[', '').replace(']', '')
+
+    # Create corresponding result file paths
     resStr = fileStr.replace('.tif', '_locs.csv')
+
     return fileStr, resStr
 
 macroCommand = """for (i=0; i  < datapaths.length; i++) {
@@ -81,32 +92,38 @@ macroCommand = """for (i=0; i  < datapaths.length; i++) {
 #     }
 # }"""
 
-def writeMacro(datapaths,respaths,macroCommand,savepath):
+def writeMacro(datapaths, respaths, macroCommand, savepath):
+    """
+    Write the ImageJ macro to a file.
 
-    stringtowrite = "{}\n{}\n{}".format(datapaths,respaths,macroCommand)
+    Args:
+    datapaths (str): Comma-separated string of input file paths
+    respaths (str): Comma-separated string of output file paths
+    macroCommand (str): The ImageJ macro command
+    savepath (str): Path to save the macro file
+    """
+    stringtowrite = "{}\n{}\n{}".format(datapaths, respaths, macroCommand)
 
-    f = open(savepath, "w")
-    f.write(stringtowrite)
-    f.close()
-    return
+    with open(savepath, "w") as f:
+        f.write(stringtowrite)
 
 
 
 if __name__ == '__main__':
-    #set top folder level for analysis
+    # Set top folder level for analysis
     path = '/Users/george/Data/MCS_04_20230906_BAPTA_NSC66_5uM_UltraQuiet_FOV56_1'
-    #path = '/Users/george/Data/gabby_missingIntensities'
 
-    savepath = os.path.join(path,'thunderStorm_macro_auto.ijm')
+    # Set path to save the macro
+    savepath = os.path.join(path, 'thunderStorm_macro_auto.ijm')
 
-    dataPathStr,resPathStr  = getFileList(path)
+    # Get list of input files and corresponding output files
+    dataPathStr, resPathStr = getFileList(path)
 
+    # Format paths for use in ImageJ macro
     datapaths = 'datapaths = newArray({});'.format(dataPathStr)
     respaths = 'respaths = newArray({});'.format(resPathStr)
 
-    '''uncomment/comment out below to select single or multiemmiter localization option'''
-
-    #single emitter option
+    # Write the macro to a file
     writeMacro(datapaths, respaths, macroCommand, savepath)
 
     #multiemitter option - to modify number of emitters etc modify the macroCommand_multiemitter string above

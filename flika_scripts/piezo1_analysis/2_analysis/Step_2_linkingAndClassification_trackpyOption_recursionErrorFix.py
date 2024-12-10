@@ -9,25 +9,22 @@ Created on Tue Dec 13 15:25:24 2022
 #%matplotlib qt
 #%gui qt
 
+# Suppress warnings
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
+# Import required libraries
 import numba
-
 import numpy as np
 import pandas as pd
-
 from tqdm import tqdm
 import os, glob
-
-
 import json, codecs
 from distutils.version import StrictVersion
 from qtpy.QtCore import QUrl, QRect, QPointF, Qt
 from qtpy.QtGui import QDesktopServices, QIcon, QPainterPath, QPen, QColor
 from qtpy.QtWidgets import QHBoxLayout, QGraphicsPathItem, qApp
 from qtpy import uic
-
 import flika
 from flika import global_vars as g
 from flika.window import Window
@@ -75,13 +72,16 @@ from sklearn.preprocessing import power_transform, PowerTransformer, StandardSca
 
 import skimage.io as skio
 
+# Set recursion limit
 recursionLimit = 1000000
 sys.setrecursionlimit(recursionLimit)
 
 #print(sys.getrecursionlimit())
 
+# Function definitions
 
 def addID(file):
+    """Add ID column to CSV file"""
     df = pd.read_csv(file)
     df['id'] = df['id'].astype('int')
     df['frame'] = df['frame'].astype('int') -1 #reseting first frame to zero to maych flika display
@@ -134,6 +134,7 @@ def get_points(I):
 
 
 def load_points(filename, pixelsize = 108):
+    """Load points from CSV file"""
     #filename = open_file_gui("Open points from thunderstorm csv, filetypes='*.csv")
     if filename is None:
         return None
@@ -152,6 +153,7 @@ def load_points(filename, pixelsize = 108):
 
 
 def cutout(pt, Movie, width):
+    """Cut out a region around a point in a movie"""
     assert width % 2 == 1  # mx must be odd
     t, x, y = pt
     t=int(t)
@@ -171,6 +173,7 @@ def cutout(pt, Movie, width):
 
 
 def refine_pts(pts, blur_window, sigma, amplitude):
+    """Refine point locations"""
     global halt_current_computation
     if blur_window is None:
         g.alert("Before refining points, you must select a 'blurred window'")
@@ -203,9 +206,11 @@ def refine_pts(pts, blur_window, sigma, amplitude):
 
 
 def flatten(l):
+    """Flatten a list of lists"""
     return [item for sublist in l for item in sublist]
 
 def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
+    """Save tracks to CSV file"""
     tracks = points.tracks
     if isinstance(tracks[0][0], int):
         tracks = [[np.ndarray.item(a) for a in b] for b in tracks]
@@ -306,6 +311,7 @@ def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
 
 
 class Points(object):
+    """Class to handle point data and track linking"""
     def __init__(self, txy_pts):
         self.frames = np.unique(txy_pts[:, 0]).astype(int)
         self.txy_pts = txy_pts
@@ -439,6 +445,7 @@ class Points(object):
             self.intensities.append(np.mean(dataArray[frame][xMin:xMax,yMin:yMax]))
 
 def skip_refinePoints(txy_pts):
+    """Skip point refinement"""
     if txy_pts is None:
         return None
     new_pts = []
@@ -450,6 +457,7 @@ def skip_refinePoints(txy_pts):
 
 
 def loadtracksjson(filename):
+    """Load tracks from JSON file"""
     obj_text = codecs.open(filename, 'r', encoding='utf-8').read()
     pts = json.loads(obj_text)
     txy_pts = np.array(pts['txy_pts'])
@@ -461,8 +469,12 @@ def loadtracksjson(filename):
     points.get_tracks_by_frame()
     return points
 
+# Functions for calculating track features
+
 # Radius of Gyration and Asymmetry
 def RadiusGyrationAsymmetrySkewnessKurtosis(trackDF):
+    """Calculate radius of gyration, asymmetry, skewness, and kurtosis for a track"""
+
     # Drop any skipped frames and convert trackDF to XY array
     points_array = np.array(trackDF[['x', 'y']].dropna())
     # get Rg etc using Vivek's codes
@@ -487,6 +499,7 @@ def RadiusGyrationAsymmetrySkewnessKurtosis(trackDF):
 
 # Fractal Dimension
 def FractalDimension(points_array):
+    """Calculate fractal dimension of a track"""
     ####Vivek's code
     #Check if points are on the same line:
     x0, y0 = points_array[0]
@@ -505,6 +518,7 @@ def FractalDimension(points_array):
 
 # Net Displacement
 def NetDisplacementEfficiency(points_array):
+    """Calculate net displacement and efficiency of a track"""
     ####Vivek's code
     net_displacement_value = np.linalg.norm(points_array[0]-points_array[-1])
     netDispSquared = pow(net_displacement_value, 2)
@@ -517,6 +531,7 @@ def NetDisplacementEfficiency(points_array):
 
 # Bending & Straightness Features
 def SummedSinesCosines(points_array):
+    """Calculate summed sines and cosines for a track"""
     ## Vivek's code
     # Look for repeated positions in consecutive frames
     compare_against = points_array[:-1]
@@ -546,6 +561,7 @@ def SummedSinesCosines(points_array):
     return sin_mean_val, sin_vals, cos_mean_val, cos_vals
 
 def getRadiusGyrationForAllTracksinDF(tracksDF):
+    """Calculate radius of gyration for all tracks in a DataFrame"""
     tracksToTest = tracksDF['track_number'].tolist()
     idTested = []
     radius_gyration_list=[]
@@ -582,6 +598,7 @@ def getRadiusGyrationForAllTracksinDF(tracksDF):
     return tracksDF
 
 def getFeaturesForAllTracksinDF(tracksDF):
+    """Calculate features for all tracks in a DataFrame"""
     tracksToTest = tracksDF['track_number'].tolist()
     idTested = []
     fracDim_list = []
@@ -622,6 +639,7 @@ def getFeaturesForAllTracksinDF(tracksDF):
     return tracksDF
 
 def addLagDisplacementToDF(tracksDF):
+    """Add lag displacement to DataFrame"""
     #align x and y locations of link
     tracksDF = tracksDF.assign(x2=tracksDF.x.shift(-1))
     tracksDF = tracksDF.assign(y2=tracksDF.y.shift(-1))
@@ -659,6 +677,7 @@ def addLagDisplacementToDF(tracksDF):
 
 
 def getNearestNeighbors(train,test,k=2):
+    """Get nearest neighbors using KDTree"""
     tree = KDTree(train, leaf_size=5)
     if k > len(train):
         #no neighbours to count return nan
@@ -671,6 +690,7 @@ def getNearestNeighbors(train,test,k=2):
     return dist, ind
 
 def getNN(tracksDF):
+    """Get nearest neighbors for all points in a DataFrame"""
     #sort by frame
     tracksDF = tracksDF.sort_values(by=['frame'])
     #make empty list to store NN distances & indexes
@@ -704,6 +724,7 @@ def getNN(tracksDF):
 
 
 def getIntensities(dataArray, pts):
+    """Get intensities for points from image data"""
     #intensities retrieved from image stack using point data (converted from floats to ints)
 
     n, w, h = dataArray.shape #!TODO check w and h are right way around - maybe transposed from flika import (only affects edge cases)
@@ -741,6 +762,7 @@ def getIntensities(dataArray, pts):
     return intensities
 
 def calcFeaturesforFiles(tracksList, minNumberSegments=1):
+    """Calculate features for a list of track files"""
     for trackFile in tqdm(tracksList):
             try:
                 ##### load data
@@ -884,13 +906,14 @@ def predict_SPT_class(train_data_path, pred_data_path, exptName, level):
 
 
 def classifyTracks(tracksList, train_data_path, level=''):
-
+    """Classify tracks using SVM"""
     for pred_data_path in tqdm(tracksList):
         exptName = os.path.basename(pred_data_path).split('_MMStack')[0]
         predict_SPT_class(train_data_path, pred_data_path, exptName, level=level)
 
 
 def filterDFandLocs_SVM3(dfFile, locsIdentifer='_tracksRG_SVMPredicted.csv', colName='SVM'):
+    """Filter DataFrame and locs file for SVM class 3"""
     #load df with SVM
     df = pd.read_csv(dfFile)
     #load original locs file
@@ -915,6 +938,7 @@ def filterDFandLocs_SVM3(dfFile, locsIdentifer='_tracksRG_SVMPredicted.csv', col
 
 
 def filterDFandLocs_SVM2(dfFile, locsIdentifer='_tracks2RG2_SVMPredicted2.csv', colName='SVM'):
+    """Filter DataFrame and locs file for SVM class 2"""
     #load df with SVM
     df = pd.read_csv(dfFile)
 
@@ -952,6 +976,7 @@ def filterDFandLocs_SVM2(dfFile, locsIdentifer='_tracks2RG2_SVMPredicted2.csv', 
     return
 
 def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, distanceToLink = 3, level=''):
+    """Link files using flika"""
     for fileName in tqdm(tiffList):
 
         #set file & save names
@@ -981,6 +1006,7 @@ def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, dist
     return
 
 def linkFilesNoFlika(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, distanceToLink = 3, level='', allFiles=[], includeRecursionProblem=False):
+    """Link files without using flika"""
     for fileName in tqdm(tiffList):
         print('linking : {}'.format(fileName))
 
@@ -1021,6 +1047,7 @@ def linkFilesNoFlika(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 
 
 
 def importJSON(tiffList, pixelSize = 0.108, level=''):
+    """Import tracks from JSON files"""
     for fileName in tqdm(tiffList):
 
         #set file & save names
@@ -1054,6 +1081,7 @@ def importJSON(tiffList, pixelSize = 0.108, level=''):
 
 
 def linkFiles_trackpy(tiffList, pixelSize = 0.108, skipFrames = 1, distanceToLink = 3, level='', linkingType='standard', maxDistance=5):
+    """Link files using trackpy"""
     #try loading trackpy
     try:
         import trackpy as tp
@@ -1121,11 +1149,13 @@ def linkFiles_trackpy(tiffList, pixelSize = 0.108, skipFrames = 1, distanceToLin
 
 if __name__ == '__main__':
     ##### RUN ANALYSIS
+
+    # Set paths and parameters
     path = '/Users/george/Data/MCS_04_20230906_BAPTA_NSC66_5uM_UltraQuiet_FOV56_1'
     #path = '/Users/george/Data/test'
     #path = '/Users/george/Data/gabby_missingIntensities'
 
-    #get folder paths
+    # Get file lists
     #tiffList = glob.glob(path + '/**/*_bin10.tif', recursive = True)
     #tiffList = glob.glob(path + '/**/*_crop200.tif', recursive = True)
     tiffList = glob.glob(path + '/**/*.tif', recursive = True)
