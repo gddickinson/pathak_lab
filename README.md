@@ -35,7 +35,7 @@ The codebase is organized into two main components:
 
 2. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/piezo1-analysis.git
+git clone https://github.com/gddickinson/pathak_lab.git
 ```
 
 3. Install required Python packages:
