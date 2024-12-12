@@ -14,7 +14,6 @@ The codebase is organized into two main components:
 - Super-resolution tracking of PIEZO1-HaloTag puncta
 - Analysis of protein diffusion and mobility patterns 
 - Visualization of protein localization and trajectories
-- Background subtraction and filtering of autofluorescence
 - Statistical analysis of protein behavior
 
 ## Requirements
@@ -53,7 +52,6 @@ The analysis pipeline consists of several steps:
 
 1. **Preprocessing** (`flika_scripts/piezo1_analysis/1_preprocessing/`)
    - Convert and prepare microscopy data
-   - Remove autofluorescence
    - Bin data by frame
 
 2. **Analysis** (`flika_scripts/piezo1_analysis/2_analysis/`)
