@@ -8,6 +8,7 @@ The codebase is organized into two main components:
 
 - `flika_plugins/`: Custom plugins for the FLIKA image processing platform, providing interactive visualization and analysis tools
 - `flika_scripts/`: Command-line Python scripts for batch processing and analysis of PIEZO1 data
+- 'minimal_model/': Test data with results file from running the analysis pipeline
 
 ### Key Features
 
