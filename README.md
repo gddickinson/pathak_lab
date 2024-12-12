@@ -94,4 +94,4 @@ bioRxiv 2023.12.22.573117; doi: https://doi.org/10.1101/2023.12.22.573117
 
 ## Contact
 
-For questions or issues, please open an issue on GitHub or contact [your-email@institute.edu].
+For questions or issues, please open an issue on GitHub or contact [george.dickinson@gmail.com].
