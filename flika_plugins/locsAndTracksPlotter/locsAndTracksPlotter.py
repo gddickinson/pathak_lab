@@ -27,7 +27,6 @@ from time import time
 from distutils.version import StrictVersion
 import flika
 from flika import global_vars as g
-from flika.window import Window
 from os.path import expanduser
 import os, shutil, subprocess
 import math
@@ -89,6 +88,60 @@ from .trackWindow import TrackWindow
 from .chartDock import ChartDock
 from .overlay import Overlay
 
+
+
+class ColorButton(QPushButton):
+    '''
+    Custom Qt Widget to show a chosen color.
+
+    Left-clicking the button shows the color-chooser, while
+    right-clicking resets the color to None (no-color).
+    '''
+
+    colorChanged = Signal(object)
+
+    def __init__(self, *args, color=None, **kwargs):
+        super(ColorButton, self).__init__(*args, **kwargs)
+
+        self._color = None
+        self._default = color
+        self.pressed.connect(self.onColorPicker)
+
+        # Set the initial/default state.
+        self.setColor(self._default)
+
+    def setColor(self, color):
+        if color != self._color:
+            self._color = color
+            self.colorChanged.emit(color)
+
+        if self._color:
+            self.setStyleSheet("background-color: %s;" % self._color)
+        else:
+            self.setStyleSheet("")
+
+    def color(self):
+        return self._color
+
+    def onColorPicker(self):
+        '''
+        Show color-picker dialog to select color.
+
+        Qt will use the native dialog by default.
+
+        '''
+        dlg = QColorDialog(self)
+        if self._color:
+            dlg.setCurrentColor(QColor(self._color))
+
+        if dlg.exec_():
+            self.setColor(dlg.currentColor().name())
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.RightButton:
+            self.setColor(self._default)
+
+        return super(ColorButton, self).mousePressEvent(e)
 
 class FilterOptions():
     """
@@ -245,6 +298,7 @@ class TrackPlotOptions():
         self.trackcolourcols = {'None':'None'}
         self.trackColourCol_Box.setItems(self.trackcolourcols)
         self.trackColourCol_Box_label = QLabel('Colour By')
+        self.trackColourCol_Box.currentIndexChanged.connect(self.update)
 
         self.colourMap_Box = pg.ComboBox()
         self.colourMaps = dictFromList(pg.colormap.listMaps())
@@ -272,6 +326,26 @@ class TrackPlotOptions():
         self.matplotCM_checkbox.setChecked(False)
         self.matplotCM_checkbox_label = QLabel('Use Matplot Colour Map')
 
+        self.threshold_checkbox = CheckBox()
+        self.threshold_checkbox.setChecked(False)
+        self.threshold_checkbox_label = QLabel('Colour By Threshold (overrides above)')
+        self.threshold_checkbox.stateChanged.connect(self.update)
+
+        self.threshValue_selector = pg.SpinBox(value=20, int=False)
+        self.threshValue_selector.setSingleStep(0.1)
+        self.threshValue_selector.setMinimum(0)
+        self.threshValue_selector.setMaximum(1000)
+        self.threshValue_selector_label = QLabel('Threshold Value')
+        self.threshValue_selector.valueChanged.connect(self.update)
+
+        self.aboveColour_button = ColorButton(color='#00fdff')
+        self.aboveColour_button_label = QLabel('Above Colour (click to set)')
+        self.aboveColour_button.pressed.connect(self.setAboveColour)
+
+        self.belowColour_button = ColorButton(color='#ff40ff')
+        self.belowColour_button_label = QLabel('Below Colour (click to set)')
+        self.belowColour_button.pressed.connect(self.setBelowColour)
+
         #layout
         self.w1.addWidget(self.trackColour_checkbox_label , row=1,col=0)
         self.w1.addWidget(self.trackColour_checkbox, row=1,col=1)
@@ -290,6 +364,19 @@ class TrackPlotOptions():
 
         self.w1.addWidget(self.lineSize_selector_label, row=6,col=0)
         self.w1.addWidget(self.lineSize_selector, row=6,col=1)
+
+
+        self.w1.addWidget(self.threshold_checkbox_label, row=7,col=0)
+        self.w1.addWidget(self.threshold_checkbox, row=7,col=1)
+
+        self.w1.addWidget(self.threshValue_selector_label, row=8,col=0)
+        self.w1.addWidget(self.threshValue_selector, row=8,col=1)
+
+        self.w1.addWidget(self.aboveColour_button_label, row=9,col=0)
+        self.w1.addWidget(self.aboveColour_button, row=9,col=1)
+
+        self.w1.addWidget(self.belowColour_button_label, row=10,col=0)
+        self.w1.addWidget(self.belowColour_button, row=10,col=1)
 
         #add layout widget to dock
         self.d1.addWidget(self.w1)
@@ -361,6 +448,21 @@ class TrackPlotOptions():
 
         #add layout widget to dock
         self.d3.addWidget(self.w3)
+
+    def setAboveColour(self):
+        self.update()
+        print('Above threshold {} colour set to {}'.format(self.threshValue_selector.value(), self.aboveColour_button.color()))
+
+    def setBelowColour(self):
+        self.update()
+        print('Below threshold {} colour set to {}'.format(self.threshValue_selector.value(), self.belowColour_button.color()))
+
+    def update(self):
+        colName = self.trackColourCol_Box.value()
+        thresh = self.threshValue_selector.value()
+        belowColour = QColor(self.belowColour_button.color())
+        aboveColour = QColor(self.aboveColour_button.color())
+        self.mainGUI.data['threshColour'] = np.where(self.mainGUI.data[colName] > thresh, aboveColour ,belowColour)
 
 
     def show(self):
@@ -573,7 +675,7 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
 
         #comboboxes
         self.filetype_Box = pg.ComboBox()
-        filetypes = {'flika' : 'flika', 'thunderstorm':'thunderstorm', 'xy':'xy'}
+        filetypes = {'flika' : 'flika', 'thunderstorm':'thunderstorm', 'xy':'xy', 'json': 'json'}
         self.filetype_Box.setItems(filetypes)
 
         self.xCol_Box = pg.ComboBox()
@@ -593,7 +695,7 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
         self.trackCol_Box.setItems(self.trackcols)
 
         #data file selector
-        self.getFile = FileSelector(filetypes='*.csv', mainGUI=self)
+        self.getFile = FileSelector(filetypes='*.csv, *.json', mainGUI=self)
 
         #connections
         self.getFile.valueChanged.connect(self.loadData)
@@ -652,7 +754,10 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
         self.filename = self.getFile.value()
 
         # Load the data from the selected file using Pandas
-        self.data = pd.read_csv(self.filename)
+        if self.filetype_Box.value() == 'json':
+            self.data = self.loadJSONTracks(self.filename)
+        else:
+            self.data = pd.read_csv(self.filename)
 
         ### TODO! #Check if analysed columns are in df - if missing add and display error message
         #g.m.statusBar().showMessage('{} columns missing - blanks aded'.format())
@@ -736,6 +841,10 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
 
 
     def makePointDataDF(self, data):
+        """
+        Prepare point data for plotting based on the file type.
+        """
+
         # Check the filetype selected in the GUI
         if self.filetype_Box.value() == 'thunderstorm':
             # Load thunderstorm data into a pandas dataframe
@@ -757,14 +866,27 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
             # Use y data as-is (FLIKA data is already in pixel units)
             df['y'] = data['y']
 
+        elif self.filetype_Box.value() == 'json':
+            df = pd.DataFrame()
+            # Data is already in the correct format, just copy the relevant columns
+            df['frame'] = data['frame'].astype(int)
+            df['x'] = data['x']
+            df['y'] = data['y']
 
         # Return the completed pandas dataframe
         return df
 
     def plotPointsOnStack(self, points, pointColor, unlinkedPoints=None, unlinkedColour=QColor(Qt.blue)):
         points_byFrame = points[['frame','x','y']]
+
+        # Debug prints
+        print("Maximum frame in data:", points_byFrame['frame'].max())
+        print("Number of frames in window:", self.plotWindow.mt)
+        print("Frame range:", points_byFrame['frame'].min(), "to", points_byFrame['frame'].max())
+
+
         #align frames with display
-        if self.filetype_Box.value() == 'thunderstorm':
+        if self.filetype_Box.value() == 'thunderstorm' or self.filetype_Box.value() == 'json' :
             points_byFrame['frame'] =  points_byFrame['frame']
         else:
             points_byFrame['frame'] =  points_byFrame['frame']+1
@@ -866,6 +988,9 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
 
 
     def makeTrackDF(self, data):
+        """
+        Prepare track data for plotting based on the file type.
+        """
         if self.filetype_Box.value() == 'thunderstorm':
             ######### load FLIKA pyinsight data into DF ############
             df = pd.DataFrame()
@@ -892,15 +1017,29 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
             df['zeroed_X'] = data['zeroed_X']
             df['zeroed_Y'] = data['zeroed_Y']
 
-            # Add a color column to the DataFrame based on the selected color map and column
-            if self.trackPlotOptions.trackColour_checkbox.isChecked():
-                if self.useMatplotCM:
-                    cm = pg.colormap.getFromMatplotlib(self.trackPlotOptions.colourMap_Box.value()) # Get the colormap from Matplotlib and convert it to a PyqtGraph colormap
-                else:
-                    cm = pg.colormap.get(self.trackPlotOptions.colourMap_Box.value()) # Get the PyqtGraph colormap
+        elif self.filetype_Box.value() == 'json':
+            df = pd.DataFrame()
+            # Data is already in the correct format, just copy it
+            df['frame'] = data['frame'].astype(int)-1
+            df['x'] = data['x']
+            df['y'] = data['y']
+            df['track_number'] = data['track_number']
+            df['zeroed_X'] = data['zeroed_X']
+            df['zeroed_Y'] = data['zeroed_Y']
 
-                # Map the values from the selected color column to a QColor using the selected colormap
-                df['colour'] = cm.mapToQColor(data[self.trackPlotOptions.trackColourCol_Box.value()].to_numpy()/max(data[self.trackPlotOptions.trackColourCol_Box.value()]))
+
+        # Add a color column to the DataFrame based on the selected color map and column
+        if self.trackPlotOptions.trackColour_checkbox.isChecked():
+
+            if self.useMatplotCM:
+                cm = pg.colormap.getFromMatplotlib(self.trackPlotOptions.colourMap_Box.value()) # Get the colormap from Matplotlib and convert it to a PyqtGraph colormap
+            else:
+                cm = pg.colormap.get(self.trackPlotOptions.colourMap_Box.value()) # Get the PyqtGraph colormap
+
+            # Map the values from the selected color column to a QColor using the selected colormap
+            df['colour'] = cm.mapToQColor(data[self.trackPlotOptions.trackColourCol_Box.value()].to_numpy()/max(data[self.trackPlotOptions.trackColourCol_Box.value()]))
+            df['threshColour'] = data['threshColour']
+
 
         # Group the data by track number
         return df.groupby(['track_number'])
@@ -939,11 +1078,11 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
 
         pen_FP = QPen(self.trackPlotOptions.trackDefaultColour_Box.value(), .4)
         pen_FP.setCosmetic(True)
-        pen_FP.setWidth(1)
+        pen_FP.setWidth(self.trackPlotOptions.lineSize_selector.value())
 
         pen_overlay = QPen(self.trackPlotOptions.trackDefaultColour_Box.value(), .4)
         pen_overlay.setCosmetic(True)
-        pen_overlay.setWidth(1)
+        pen_overlay.setWidth(self.trackPlotOptions.lineSize_selector.value())
 
         # determine which track IDs to plot based on whether filtered tracks are being used
         if self.useFilteredTracks:
@@ -963,10 +1102,19 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
                 pathitem_FP = QGraphicsPathItem(self.flowerPlotWindow.plt)
 
             # set the color of the pen based on the track color
+
+
+            if self.trackPlotOptions.threshold_checkbox.isChecked():
+                cmChoice ='threshColour'
+            else:
+                cmChoice ='colour'
+
             if self.trackPlotOptions.trackColour_checkbox.isChecked():
-                pen.setColor(tracks['colour'].to_list()[0])
-                pen_overlay.setColor(tracks['colour'].to_list()[0])
-                pen_FP.setColor(tracks['colour'].to_list()[0])
+                pen.setColor(tracks[cmChoice].to_list()[0])
+                pen_overlay.setColor(tracks[cmChoice].to_list()[0])
+                pen_FP.setColor(tracks[cmChoice].to_list()[0])
+
+
 
             # set the pen for the path items
             pathitem.setPen(pen)
@@ -1498,6 +1646,139 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
         except BaseException as e:
             print(e)
             print('Export of filtered data failed')
+
+    def loadJSONTracks(self, json_file):
+        """
+        Import track data from a JSON file format and calculate track metrics.
+
+        Parameters:
+            json_file (str): Path to JSON file containing track data
+
+        Returns:
+            pandas.DataFrame: DataFrame containing the track data with calculated metrics
+        """
+        import json
+        from scipy.stats import skew, kurtosis
+
+        # Load JSON data
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        # Initialize lists to store track data
+        frames = []
+        track_numbers = []
+        x_coords = []
+        y_coords = []
+
+        # Convert txy_pts to numpy array for easier indexing
+        txy_pts = np.array(data['txy_pts'])
+
+        # Parse tracks from JSON
+        for track_idx, track in enumerate(data['tracks']):
+            # Get the point IDs for this track
+            point_ids = track
+
+            # Get the corresponding txy data for each point in the track
+            for point_id in point_ids:
+                point_data = txy_pts[point_id]
+                frames.append(point_data[0])  # frame
+                x_coords.append(point_data[1])  # x coordinate
+                y_coords.append(point_data[2])  # y coordinate
+                track_numbers.append(track_idx)
+
+        # Create DataFrame
+        df = pd.DataFrame({
+            'frame': frames,
+            'track_number': track_numbers,
+            'x': x_coords,
+            'y': y_coords
+        })
+
+        # Sort by track number and frame
+        df = df.sort_values(['track_number', 'frame'])
+
+        def calculate_track_metrics(group):
+            """Calculate various metrics for each track."""
+            # Zero coordinates (relative to track start)
+            start_x = group['x'].iloc[0]
+            start_y = group['y'].iloc[0]
+            group['zeroed_X'] = group['x'] - start_x
+            group['zeroed_Y'] = group['y'] - start_y
+
+            # Calculate time steps (dt)
+            group['dt'] = group['frame'].diff()
+
+            # Calculate displacements
+            group['dx'] = group['x'].diff()
+            group['dy'] = group['y'].diff()
+            group['d_squared'] = group['dx']**2 + group['dy']**2
+
+            # Distance from origin for each point
+            group['distanceFromOrigin'] = np.sqrt((group['x'] - start_x)**2 +
+                                                (group['y'] - start_y)**2)
+
+            # Velocity and direction
+            group['velocity'] = np.sqrt(group['d_squared']) / group['dt']
+            group['direction_Relative_To_Origin'] = np.arctan2(group['dy'],
+                                                             group['dx']) * 180 / np.pi
+
+            # Mean velocity
+            group['meanVelocity'] = group['velocity'].mean()
+
+            # Track length stats
+            group['track_length'] = len(group)
+
+            # Calculate lag steps
+            group['lag'] = group.index - group.index[0]
+            group['meanLag'] = group['lag'].mean()
+
+            # Net displacement
+            end_x = group['x'].iloc[-1]
+            end_y = group['y'].iloc[-1]
+            net_displacement = np.sqrt((end_x - start_x)**2 + (end_y - start_y)**2)
+            group['netDispl'] = net_displacement
+
+            # Radius of gyration
+            mean_x = group['x'].mean()
+            mean_y = group['y'].mean()
+            group['radius_gyration'] = np.sqrt(((group['x'] - mean_x)**2 +
+                                              (group['y'] - mean_y)**2).mean())
+
+            # Asymmetry and shape metrics
+            dx_squared = (group['x'] - mean_x)**2
+            dy_squared = (group['y'] - mean_y)**2
+            group['asymmetry'] = abs(dx_squared.mean() - dy_squared.mean()) / \
+                                (dx_squared.mean() + dy_squared.mean())
+
+            # Skewness and kurtosis of displacements
+            if len(group['d_squared'].dropna()) > 0:
+                group['skewness'] = skew(group['d_squared'].dropna())
+                group['kurtosis'] = kurtosis(group['d_squared'].dropna())
+            else:
+                group['skewness'] = np.nan
+                group['kurtosis'] = np.nan
+
+            # Straightness (net displacement / total path length)
+            total_path_length = np.sqrt(group['d_squared']).sum()
+            group['Straight'] = net_displacement / total_path_length if total_path_length > 0 else 0
+
+            # Distance over time metric
+            group['dy-dt: distance'] = group['distanceFromOrigin'].diff() / group['dt']
+
+            return group
+
+        # Apply calculations to each track
+        df = df.groupby('track_number').apply(calculate_track_metrics)
+
+        # Add remaining columns that we can't calculate
+        remaining_cols = ['intensity', 'lagNumber', 'fracDimension', 'Experiment',
+                         'SVM', 'nnDist_inFrame']
+
+        for col in remaining_cols:
+            df[col] = np.nan
+
+        return df
+
 
 # Instantiate the LocsAndTracksPlotter class
 locsAndTracksPlotter = LocsAndTracksPlotter()
