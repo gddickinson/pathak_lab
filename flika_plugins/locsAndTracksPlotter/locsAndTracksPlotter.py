@@ -1040,6 +1040,8 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
             df['colour'] = cm.mapToQColor(data[self.trackPlotOptions.trackColourCol_Box.value()].to_numpy()/max(data[self.trackPlotOptions.trackColourCol_Box.value()]))
             df['threshColour'] = data['threshColour']
 
+        # Add this line before groupby to reset any index
+        df = df.reset_index(drop=True)
 
         # Group the data by track number
         return df.groupby(['track_number'])
