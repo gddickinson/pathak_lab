@@ -695,7 +695,7 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
         self.trackCol_Box.setItems(self.trackcols)
 
         #data file selector
-        self.getFile = FileSelector(filetypes='*.csv, *.json', mainGUI=self)
+        self.getFile = FileSelector(filetypes='*.csv *.json', mainGUI=self)
 
         #connections
         self.getFile.valueChanged.connect(self.loadData)
@@ -1040,8 +1040,10 @@ class LocsAndTracksPlotter(BaseProcess_noPriorWindow):
             df['colour'] = cm.mapToQColor(data[self.trackPlotOptions.trackColourCol_Box.value()].to_numpy()/max(data[self.trackPlotOptions.trackColourCol_Box.value()]))
             df['threshColour'] = data['threshColour']
 
-        # Add this line before groupby to reset any index
-        df = df.reset_index(drop=True)
+
+        if self.filetype_Box.value() == 'json':
+            # Add this line before groupby to reset any index
+            df = df.reset_index(drop=True)
 
         # Group the data by track number
         return df.groupby(['track_number'])
