@@ -29,12 +29,13 @@ def compileSVMresults(path):
         row = pd.DataFrame(data=d, index=[i])
         i +=1
         
-        resultsDF = resultsDF.append(row)
+        resultsDF = pd.concat([resultsDF, row])
     
     resultsDF['cutoff'] = resultsDF['cutoff'].astype('int')
     resultsDF = resultsDF.sort_values('cutoff')
     
-    statsDF = resultsDF.groupby('cutoff').agg(['mean','std'])
+    #count columns only (pandas >= 2 no longer drops the text exptName column itself)
+    statsDF = resultsDF.groupby('cutoff')[['n_SVM_1', 'n_SVM_2', 'n_SVM_3']].agg(['mean','std'])
           
     return resultsDF, statsDF
 

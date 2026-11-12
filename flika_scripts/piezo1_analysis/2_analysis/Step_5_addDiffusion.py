@@ -28,8 +28,8 @@ def addDiffusiontoDF(df):
             trackDF = df[df['track_number']==track]
             #set positions relative to origin of 0,0
             minFrame = trackDF['frame'].min()
-            origin_X = float(trackDF[trackDF['frame'] == minFrame]['x'])
-            origin_Y = float(trackDF[trackDF['frame'] == minFrame]['y'])
+            origin_X = float(trackDF[trackDF['frame'] == minFrame]['x'].iloc[0])
+            origin_Y = float(trackDF[trackDF['frame'] == minFrame]['y'].iloc[0])
             trackDF['zeroed_X'] = trackDF['x'] - origin_X
             trackDF['zeroed_Y'] = trackDF['y'] - origin_Y
             #generate lag numbers

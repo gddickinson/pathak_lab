@@ -602,9 +602,9 @@ def filterDFandLocs_SVM2(dfFile, locsIdentifer='_tracks2RG2_SVMPredicted2.csv', 
     #combine SVM3 tracks
     maxTrackNumber = max(df_SVM3['track_number'])
     df_SVM3_extras['track_number'] = df_SVM3_extras['track_number'] + maxTrackNumber
-    df_SVM3 = df_SVM3.append(df_SVM3_extras)
+    df_SVM3 = pd.concat([df_SVM3, df_SVM3_extras])
 
-    df_SVM2and3 = df_SVM2.append(df_SVM3)
+    df_SVM2and3 = pd.concat([df_SVM2, df_SVM3])
 
     #get ids of SVM tracks
     filteredID_list = df_SVM2and3['id'].tolist()
