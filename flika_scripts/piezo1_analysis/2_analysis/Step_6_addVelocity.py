@@ -36,7 +36,8 @@ def addVelocitytoDF(df):
 
 
         #add delta-t for each lag
-        newDF['dt'] = np.insert(newDF['frame'].to_numpy()[1:],-1,0) - newDF['frame'].to_numpy()
+        #frame of the next row (0 after the last row, which the mask below turns into None)
+        newDF['dt'] = np.append(newDF['frame'].to_numpy()[1:], 0) - newDF['frame'].to_numpy()
         newDF['dt'] = newDF['dt'].mask(newDF['dt'] <= 0, None)
         #instantaneous velocity
         newDF['velocity'] = newDF['lag']/newDF['dt']

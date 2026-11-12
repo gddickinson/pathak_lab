@@ -43,6 +43,19 @@ def test_diffusion_origin_with_current_pandas():
     assert np.allclose(out["distanceFromOrigin"], d)
 
 
+def test_velocity_dt_second_last_row():
+    """Step 6 built the next-frame array with np.insert(..., -1, 0), which put the 0 before the last element: the
+    second-to-last row lost its frame interval (and velocity)."""
+    s6 = load("2_analysis/Step_6_addVelocity.py")
+    df = pd.DataFrame({"track_number": [0] * 5, "frame": [0, 1, 3, 4, 6], "lag": [1.0, 2.0, 3.0, 4.0, np.nan],
+                       "distanceFromOrigin": [0, 1, 2, 3, 4.0], "lagNumber": [0, 1, 3, 4, 6],
+                       "zeroed_X": [0, 1, 2, 3, 4.0], "zeroed_Y": [0, 0, 0, 0, 0.0]})
+    out = s6.addVelocitytoDF(df)
+    assert out["dt"].tolist()[:4] == [1, 2, 1, 2]
+    assert np.isnan(out["dt"].iloc[4])
+    assert np.allclose(out["velocity"].to_numpy()[:4], [1.0, 1.0, 3.0, 2.0])
+
+
 def test_compile_svm_results_without_dataframe_append(tmp_path):
     """compileIterationSVMClasses used DataFrame.append, removed in pandas 2."""
     cs = load("3_postprocessing/compileIterationSVMClasses.py")
