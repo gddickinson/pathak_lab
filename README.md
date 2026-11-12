@@ -69,6 +69,34 @@ The analysis workflow depends on localization of PIEZO1 puncta using either the 
 
 See individual directory READMEs for instructions on each step.
 
+## Web interface
+
+A catalogue of the tools and in-browser demos: **https://gddickinson.github.io/pathak_lab/**
+
+- **Tools**: every script and plugin module, with its purpose (from its own docstring or its folder's README),
+  functions, default parameters, the file patterns it reads and writes, and a link to the source.
+- **Pipeline**: the preprocessing, Steps 1-11 and postprocessing in order, with the file each step hands on.
+- **Demos** (Steps 2, 5, 6, 8, 11) on **synthetic** data generated in the browser: linking, track features,
+  diffusion/velocity, neighbour counts and localisation spread. The JS ports are tested against the Python on the same
+  input (`node web/static/engines.test.mjs`, fixture from `scripts/make_engine_fixture.py`).
+- **Run**: upload a ThunderSTORM localisation file or a tracks table. The local app runs the repo's own functions
+  (linking, features, SVM classes, Steps 3/4/5/6/7/8/11) and returns the full result table; the static site runs the
+  steps that have JS ports in your browser.
+
+Run the web app locally:
+```bash
+pip install -r requirements-web.txt
+python run_web.py            # http://127.0.0.1:8202
+python -m pytest -q tests    # analysis regression tests + web tests
+```
+The example data in `minimal_model/` and the SVM training file are used by the local app only; the static site
+(`python scripts/build_static.py`) contains no lab data.
+
+| | |
+|---|---|
+| ![Home](docs/img/home.png) | ![Tools](docs/img/tools.png) |
+| ![Linking demo](docs/img/linking.png) | ![Track features](docs/img/features.png) |
+
 ## Documentation
 
 - [FLIKA Plugins Guide](flika_plugins/README.md)

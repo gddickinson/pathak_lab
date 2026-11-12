@@ -1,2 +1,5 @@
 .DS_Store
 .DS_Store
+site/
+__pycache__/
+.pytest_cache/
