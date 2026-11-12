@@ -43,7 +43,7 @@ def predict_SPT_class(train_data_path, pred_data_path, exptName, level):
     train_feats = train_feats[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension', 'Elected_Label']]
     train_feats = train_feats.replace({"Elected_Label":  {"mobile":1,"confined":2, "trapped":3}})
     X = train_feats.iloc[:, 2:-1]
-    y = train_feats.iloc[:, -1]
+    y = train_feats.iloc[:, -1].astype(int)  #replace() keeps object dtype in pandas >= 3
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
     X_train_, X_test_ = prepare_box_cox_data(X_train), prepare_box_cox_data(X_test)
     X_train_, X_test_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_train_), columns=X.columns), pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_test_), columns=X.columns)

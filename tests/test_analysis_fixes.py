@@ -69,3 +69,25 @@ def test_compile_svm_results_without_dataframe_append(tmp_path):
     assert len(results) == 4 and results["n_SVM_1"].tolist() == [1, 1, 1, 1]
     assert results["cutoff"].tolist() == [5, 5, 10, 10]
     assert stats.loc[5, ("n_SVM_3", "mean")] == 1
+
+
+def test_svm_training_labels_are_classes(tmp_path):
+    """predict_SPT_class mapped the text labels with DataFrame.replace, which keeps object dtype in pandas 3, so
+    scikit-learn refused the labels ('Unknown label type')."""
+    svm = load("2_analysis/svmClassification.py")
+    rng = np.random.default_rng(0)
+    feats = ["NetDispl", "Straight", "Asymmetry", "radiusGyration", "Kurtosis", "fracDimension"]
+    rows = []
+    for i, lab in enumerate(["mobile", "confined", "trapped"] * 20):
+        scale = {"mobile": 3.0, "confined": 1.5, "trapped": 0.5}[lab]
+        rows.append({"Experiment": "tdTomato_37Degree", "TrackID": i, **{f: abs(rng.normal(scale, 0.1)) for f in feats},
+                     "Elected_Label": lab})
+    train = tmp_path / "train.csv"
+    pd.DataFrame(rows).to_csv(train, index=False)
+    pred = tmp_path / "x_tracksRG.csv"
+    pd.DataFrame({"track_number": range(6), "radius_gyration": [3, 3, 1.5, 1.5, .5, .5], "netDispl": [3, 3, 1.5, 1.5, .5, .5],
+                  "asymmetry": [3, 3, 1.5, 1.5, .5, .5], "kurtosis": [3, 3, 1.5, 1.5, .5, .5],
+                  "Straight": [3, 3, 1.5, 1.5, .5, .5], "fracDimension": [3, 3, 1.5, 1.5, .5, .5]}).to_csv(pred, index=False)
+    svm.predict_SPT_class(str(train), str(pred), "x", level="")
+    out = pd.read_csv(tmp_path / "x_tracksRG_SVMPredicted.csv")
+    assert out["SVM"].isin([1, 2, 3]).all() and len(out) == 6
