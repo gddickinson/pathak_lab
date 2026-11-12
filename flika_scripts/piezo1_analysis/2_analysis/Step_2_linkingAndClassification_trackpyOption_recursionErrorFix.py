@@ -76,6 +76,7 @@ import skimage.io as skio
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pointLinking import PointLinker, addID, load_points, flatten, savetracksCSV
 from svmClassification import predict_SPT_class
+from pipeline_defaults import FEATURE_TRANSFORM
 from trackFeatures import (RadiusGyrationAsymmetrySkewnessKurtosis, FractalDimension, NetDisplacementEfficiency,
                            SummedSinesCosines, getRadiusGyrationForAllTracksinDF, getFeaturesForAllTracksinDF,
                            addLagDisplacementToDF, getNearestNeighbors, getNN, addFeaturesToTracksDF)
@@ -304,11 +305,11 @@ def calcFeaturesforFiles(tracksList, minNumberSegments=1):
                 print('error in RG analysis, skipping {}'.format(trackFile))
 
 
-def classifyTracks(tracksList, train_data_path, level=''):
-    """Classify tracks using SVM"""
+def classifyTracks(tracksList, train_data_path, level='', feature_transform=FEATURE_TRANSFORM):
+    """Classify tracks using SVM (feature_transform: 'boxcox' or 'none' = legacy, see pipeline_defaults.py)"""
     for pred_data_path in tqdm(tracksList):
         exptName = os.path.basename(pred_data_path).split('_MMStack')[0]
-        predict_SPT_class(train_data_path, pred_data_path, exptName, level=level)
+        predict_SPT_class(train_data_path, pred_data_path, exptName, level=level, feature_transform=feature_transform)
 
 
 def filterDFandLocs_SVM3(dfFile, locsIdentifer='_tracksRG_SVMPredicted.csv', colName='SVM'):
@@ -579,6 +580,9 @@ if __name__ == '__main__':
     #pixel size
     pixelSize_new = 0.108
 
+    #SVM feature transform: 'boxcox' (default) or 'none' (legacy: what published results used, see pipeline_defaults.py)
+    featureTransform = FEATURE_TRANSFORM
+
     #trackpy options
     linkingType = 'standard'
     #linkingType = 'adaptive'
@@ -643,7 +647,7 @@ if __name__ == '__main__':
 
     #run analysis
     #classifyTracks(tracksList, trainpath, level='_cutoff_{}'.format(distance)) #uncomment if running multiple cut off values
-    classifyTracks(tracksList, trainpath, level=''.format(distance))
+    classifyTracks(tracksList, trainpath, level=''.format(distance), feature_transform=featureTransform)
 
 
     ##########################################################################

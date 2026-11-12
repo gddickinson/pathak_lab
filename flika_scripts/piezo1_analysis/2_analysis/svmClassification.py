@@ -1,21 +1,101 @@
 """Qt-free SVM track classification used by Step 2 (and the web interface).
 
-predict_SPT_class trains an RBF support-vector classifier (PCA to 3 components, standard scaling, grid search over
-C and gamma with 10-fold cross-validation) on a hand-labelled training-features file, Box-Cox transforms the features
-of a *_tracksRG.csv file and writes it back with an SVM column: 1 mobile, 2 intermediate (confined), 3 trapped.
+predict_SPT_class trains an RBF support-vector classifier (optional Box-Cox feature transform, PCA to 3 components,
+standard scaling, grid search over C and gamma with 10-fold cross-validation) on a hand-labelled training-features
+file and writes a *_tracksRG.csv file back with an SVM column: 1 mobile, 2 intermediate (confined), 3 trapped.
+
+feature_transform (default pipeline_defaults.FEATURE_TRANSFORM):
+  "boxcox"  ShiftedBoxCox is the first pipeline step: its shifts and lambdas are fitted on the training features (in
+            each cross-validation fold, then on the whole training split) and reused unchanged at prediction.
+  "none"    raw features (legacy: the old code's Box-Cox never took effect, so published results used raw features).
 """
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from sklearn import decomposition
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PowerTransformer, StandardScaler
 from sklearn.svm import SVC
 
+from pipeline_defaults import FEATURE_TRANSFORM, FEATURE_TRANSFORMS
 
-def predict_SPT_class(train_data_path, pred_data_path, exptName, level):
+FEATURES = ['NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension']
+LABELS = {"mobile": 1, "confined": 2, "trapped": 3}
+TRAIN_EXPERIMENT = 'tdTomato_37Degree'
+PARAM_GRID = {
+    "pca__n_components": [3],
+    "SVC__C": [0.1, 0.5, 1, 10, 30, 40, 50, 75, 100, 500, 1000],
+    "SVC__gamma": [0.001, 0.005, 0.01, 0.03, 0.05, 0.1, 0.5, 1., 5., 10., 50.0],
+}
+PRED_RENAME = {"radius_gyration": "radiusGyration", "track_number": "TrackID", "netDispl": "NetDispl",
+               "asymmetry": "Asymmetry", "kurtosis": "Kurtosis"}
+
+
+class ShiftedBoxCox(BaseEstimator, TransformerMixin):
+    """Box-Cox with standardisation, fitted on training features only.
+
+    As the original prepare_box_cox_data: a column whose training minimum is <= 0 is shifted by |min| + 1e-15 so it
+    is strictly positive. Shifts, lambdas and the standardisation are stored at fit and reused by transform. A
+    prediction value below the training minimum (which the shift cannot make positive) is clipped to that minimum.
+    Fits are memoised by the training data's bytes: a grid search refits the same 10 folds for every (C, gamma).
+    """
+    _cache = {}
+
+    def fit(self, X, y=None):
+        X = np.ascontiguousarray(X, dtype=float)
+        key = (X.shape, X.tobytes())
+        if key not in self._cache:
+            lo = X.min(axis=0)
+            shift = np.where(lo <= 0, np.abs(lo) + 1e-15, 0.0)
+            if len(self._cache) > 64:
+                self._cache.clear()
+            self._cache[key] = (shift, lo + shift, PowerTransformer(method='box-cox').fit(X + shift))
+        self.shift_, self.floor_, self.power_ = self._cache[key]
+        return self
+
+    def transform(self, X):
+        X = np.asarray(X, dtype=float)
+        return self.power_.transform(np.maximum(X + self.shift_, self.floor_))
+
+
+def check_transform(feature_transform):
+    ft = FEATURE_TRANSFORM if feature_transform is None else str(feature_transform).lower()
+    if ft not in FEATURE_TRANSFORMS:
+        raise ValueError(f"feature_transform must be one of {FEATURE_TRANSFORMS}, not {feature_transform!r}")
+    return ft
+
+
+def make_pipeline(feature_transform=None):
+    steps = [("pca", decomposition.PCA()), ("scaler", StandardScaler()), ("SVC", SVC(kernel="rbf"))]
+    if check_transform(feature_transform) == "boxcox":
+        steps.insert(0, ("boxcox", ShiftedBoxCox()))
+    return Pipeline(steps)
+
+
+def load_training(train_data_path):
+    """Training features (FEATURES columns) and labels (1/2/3) of the tdTomato_37Degree rows."""
+    train_feats = pd.read_csv(Path(train_data_path), sep=',')
+    train_feats = train_feats.loc[train_feats['Experiment'] == TRAIN_EXPERIMENT]
+    X = train_feats[FEATURES]
+    y = train_feats['Elected_Label'].replace(LABELS).astype(int)  # replace() keeps object dtype in pandas >= 3
+    return X, y
+
+
+def train_classifier(X, y, feature_transform=None, cv=10):
+    """Grid-search the pipeline on an 80 % training split (random_state 0, as before) and refit with the best
+    parameters. Returns (pipeline, search, (X_test, y_test)); search.best_score_ is the cross-validated accuracy."""
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0)
+    search = GridSearchCV(make_pipeline(feature_transform), param_grid=PARAM_GRID, cv=cv)
+    search.fit(X_train, y_train)
+    pipeline = make_pipeline(feature_transform).set_params(**search.best_params_)
+    pipeline.fit(X_train, y_train)
+    return pipeline, search, (X_test, y_test)
+
+
+def predict_SPT_class(train_data_path, pred_data_path, exptName, level, feature_transform=None):
     """Computes predicted class for SPT data where
         1:Mobile, 2:Intermediate, 3:Trapped
 
@@ -23,74 +103,19 @@ def predict_SPT_class(train_data_path, pred_data_path, exptName, level):
         train_data_path (str): complete path to training features data file in .csv format, ex. 'C:/data/tdTomato_37Degree_CytoD_training_feats.csv'
                                should be a .csv file with features columns, an 'Experiment' column identifying the unique experiment ('tdTomato_37Degree'),
                                a 'TrackID' column with unique numerical IDs for each track, and an 'Elected_Label' column derived from human voting.
-        pred_data_path (str): complete path to features that need predictions in .csv format, ex. 'C:/data/newconditions/gsmtx4_feature_data.csv'
-                               should be a .csv file with features columns, an 'Experiment' column identifying the unique experiment ('GsMTx4'),
-                               and a 'TrackID' column with unique numerical IDs for each track.
+        pred_data_path (str): complete path to the *_tracksRG.csv features file that needs predictions.
+        exptName (str): written to the 'Experiment' column.
+        level (str): suffix of the output name.
+        feature_transform (str): "boxcox" or "none" (legacy); default pipeline_defaults.FEATURE_TRANSFORM.
 
     Output:
-        .csv file of dataframe of prediction_file features with added SVMPredictedClass column output to pred_data_path parent folder
+        <pred_data_path stem>_SVMPredicted<level>.csv next to the input: the input table plus 'Experiment' and 'SVM'.
     """
-    def prepare_box_cox_data(data):
-        data = data.copy()
-        for col in data.columns:
-            minVal = data[col].min()
-            if minVal <= 0:
-                data[col] += (np.abs(minVal) + 1e-15)
-        return data
+    pipeline, _, _ = train_classifier(*load_training(train_data_path), feature_transform=feature_transform)
 
-    train_feats = pd.read_csv(Path(train_data_path), sep=',')
-    train_feats = train_feats.loc[train_feats['Experiment'] == 'tdTomato_37Degree']
-    train_feats = train_feats[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension', 'Elected_Label']]
-    train_feats = train_feats.replace({"Elected_Label":  {"mobile":1,"confined":2, "trapped":3}})
-    X = train_feats.iloc[:, 2:-1]
-    y = train_feats.iloc[:, -1].astype(int)  #replace() keeps object dtype in pandas >= 3
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
-    X_train_, X_test_ = prepare_box_cox_data(X_train), prepare_box_cox_data(X_test)
-    X_train_, X_test_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_train_), columns=X.columns), pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_test_), columns=X.columns)
-
-    for col_name in X_train.columns:
-        X_train.eval(f'{col_name} = @X_train_.{col_name}')
-        X_test.eval(f'{col_name} = @X_test_.{col_name}')
-
-    pipeline_steps = [("pca", decomposition.PCA()), ("scaler", StandardScaler()), ("SVC", SVC(kernel="rbf"))]
-    check_params = {
-        "pca__n_components" : [3],
-        "SVC__C" : [0.1, 0.5, 1, 10, 30, 40, 50, 75, 100, 500, 1000],
-        "SVC__gamma" : [0.001, 0.005, 0.01, 0.03, 0.05, 0.1, 0.5, 1., 5., 10., 50.0],
-    }
-
-    pipeline = Pipeline(pipeline_steps)
-    create_search_grid = GridSearchCV(pipeline, param_grid=check_params, cv=10)
-    create_search_grid.fit(X_train, y_train)
-    pipeline.set_params(**create_search_grid.best_params_)
-    pipeline.fit(X_train, y_train)
-    X = pd.read_csv(Path(pred_data_path), sep=',')
-
-    X = X.rename(columns={"radius_gyration" : "radiusGyration",
-                      "track_number" : "TrackID",
-                      "netDispl" : "NetDispl",
-                      "asymmetry" : "Asymmetry",
-                      "kurtosis" : "Kurtosis"
-                      }) ###GD EDIT
-
-    X['Experiment'] = exptName    ###GD EDIT
-
-    X = X[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension']]
-    X_label = X['Experiment'].iloc[0]
-    X_feats = X.iloc[:, 2:]
-    X_feats_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(prepare_box_cox_data(X_feats)), columns=X_feats.columns)
-
-    for col_name in X_feats.columns:
-        X_feats.eval(f'{col_name} = @X_feats_.{col_name}')
-
-    X_pred = pipeline.predict(X_feats)
-    X['SVMPredictedClass'] = X_pred.astype('int')
-    X_outpath = Path(pred_data_path).parents[0] / f'{Path(pred_data_path).stem}_SVMPredicted{level}.csv'
-    #X.to_csv(X_outpath, sep=',', index=False)
-
-    #add classes to RG file ####GD EDIT
     tracksDF = pd.read_csv(Path(pred_data_path), sep=',')
-    tracksDF['Experiment'] = X['Experiment']
-    tracksDF['SVM'] = X['SVMPredictedClass']
-
+    X = tracksDF.rename(columns=PRED_RENAME)
+    tracksDF['Experiment'] = exptName
+    tracksDF['SVM'] = pipeline.predict(X[FEATURES]).astype('int')
+    X_outpath = Path(pred_data_path).parents[0] / f'{Path(pred_data_path).stem}_SVMPredicted{level}.csv'
     tracksDF.to_csv(X_outpath, sep=',', index=None)

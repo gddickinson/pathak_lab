@@ -19,7 +19,11 @@ from sklearn import decomposition
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import PowerTransformer, StandardScaler
+from sklearn.preprocessing import StandardScaler
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '2_analysis'))
+from svmClassification import ShiftedBoxCox
+from pipeline_defaults import FEATURE_TRANSFORM, FEATURE_TRANSFORMS
 
 #sys.setrecursionlimit(10000)
 
@@ -28,7 +32,9 @@ class JoinTracks():
         #training data path
         self.train_data_path = '/Users/george/Data/from_Gabby/gabby_scripts/workFlow/training_data/tdTomato_37Degree_CytoD_training_feats.csv'
         #minimum number of link segments
-        self.minLinkSegments = 4        
+        self.minLinkSegments = 4
+        #SVM feature transform: 'boxcox' (default) or 'none' (legacy)
+        self.featureTransform = FEATURE_TRANSFORM        
 
     
     def RadiusGyrationAsymmetrySkewnessKurtosis(self, trackDF):
@@ -293,29 +299,19 @@ class JoinTracks():
         Output:
             .csv file of dataframe of prediction_file features with added SVMPredictedClass column output to pred_data_path parent folder
         """
-        def prepare_box_cox_data(data):
-            data = data.copy()
-            for col in data.columns:
-                minVal = data[col].min()
-                if minVal <= 0:
-                    data[col] += (np.abs(minVal) + 1e-15)
-            return data
-        
         train_feats = pd.read_csv(Path(train_data_path), sep=',')
         train_feats = train_feats.loc[train_feats['Experiment'] == 'tdTomato_37Degree']
-        train_feats = train_feats[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension', 'Elected_Label']]
-        train_feats = train_feats.replace({"Elected_Label":  {"mobile":1,"confined":2, "trapped":3}})
-        X = train_feats.iloc[:, 2:-1]
-        y = train_feats.iloc[:, -1]
+        X = train_feats[['NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension']]
+        y = train_feats['Elected_Label'].replace({"mobile":1,"confined":2, "trapped":3}).astype(int)  #replace() keeps object dtype in pandas >= 3
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
-        X_train_, X_test_ = prepare_box_cox_data(X_train), prepare_box_cox_data(X_test)
-        X_train_, X_test_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_train_), columns=X.columns), pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_test_), columns=X.columns)
-        
-        for col_name in X_train.columns:
-            X_train.eval(f'{col_name} = @X_train_.{col_name}')
-            X_test.eval(f'{col_name} = @X_test_.{col_name}')
-        
+
+        # featureTransform 'boxcox': Box-Cox lambdas fitted on the training tracks (inside the pipeline) and reused for
+        # prediction; 'none': raw features (legacy - the old code's Box-Cox never took effect, as in published results)
         pipeline_steps = [("pca", decomposition.PCA()), ("scaler", StandardScaler()), ("SVC", SVC(kernel="rbf"))]
+        if self.featureTransform not in FEATURE_TRANSFORMS:
+            raise ValueError('featureTransform must be one of {}'.format(FEATURE_TRANSFORMS))
+        if self.featureTransform == 'boxcox':
+            pipeline_steps.insert(0, ("boxcox", ShiftedBoxCox()))
         check_params = {
             "pca__n_components" : [3],
             "SVC__C" : [0.1, 0.5, 1, 10, 30, 40, 50, 75, 100, 500, 1000],

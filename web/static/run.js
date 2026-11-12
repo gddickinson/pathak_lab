@@ -16,6 +16,7 @@ const STEP_INFO = [
 ];
 const BROWSER = ['link', 'features', 'diffusion', 'velocity', 'nncount', 'locerr'];
 const DEFAULT_ON = ['link', 'features', 'diffusion', 'velocity', 'nncount', 'locerr'];
+const FT_LABEL = { boxcox: 'Box-Cox (default)', none: 'None (legacy, as published)' };
 let last = null;
 
 route('run', async () => {
@@ -39,6 +40,11 @@ route('run', async () => {
       ${num('link_distance', 'Linking distance (px)', d.link_distance, 'type="number" min="0" step="any"')}
       ${num('min_segments', 'Keep tracks with more than (points)', d.min_segments, 'type="number" min="0" step="1"')}
       ${num('radii', 'Neighbour radii (px, comma separated)', d.radii, 'type="text"')}
+      <label for="feature_transform">SVM feature transform</label>
+      <select id="feature_transform" name="feature_transform" ${st ? 'disabled' : ''}>
+        ${(info.feature_transforms || [d.feature_transform]).map(t => `<option value="${t}" ${t === d.feature_transform ? 'selected' : ''}>${esc(FT_LABEL[t] || t)}</option>`).join('')}
+      </select><p class="hint">Box-Cox lambdas are fitted on the training tracks and reused for yours. "None" is the legacy
+      behaviour that published results used (the old code's Box-Cox never took effect).${st ? ' The SVM needs the local app.' : ''}</p>
     </fieldset>
     <fieldset><legend>Steps</legend>
       ${STEP_INFO.map(([k, l, h]) => `<label class="check"><input type="checkbox" name="step_${k}" value="1" ${DEFAULT_ON.includes(k) ? 'checked' : ''} ${st && !BROWSER.includes(k) ? 'disabled' : ''}>
@@ -71,7 +77,7 @@ function show(r) {
   out.innerHTML = `<h2 style="margin-top:0">${esc(r.name)}</h2>
     ${r.warnings.map(w => `<p class="small warn">${esc(w)}</p>`).join('')}
     <div class="tiles">${tiles.map(([v, l]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
-    ${r.svm_counts ? `<p>SVM classes (tracks): ${Object.entries(r.svm_counts).map(([k, v]) => `<b>${({ 1: 'mobile', 2: 'intermediate', 3: 'trapped' })[k] || k}</b> ${v}`).join(' · ')}</p>` : ''}
+    ${r.svm_counts ? `<p>SVM classes (tracks): ${Object.entries(r.svm_counts).map(([k, v]) => `<b>${({ 1: 'mobile', 2: 'intermediate', 3: 'trapped' })[k] || k}</b> ${v}`).join(' · ')} <span class="small mute">(feature transform: ${esc(r.params.feature_transform || '')})</span></p>` : ''}
     <button type="button" id="dl">Download the result table (.csv)</button>
     <div class="stage" style="margin-top:12px"><canvas id="cv" role="img" aria-label="Map of the tracks in the result"></canvas></div>
     ${r.coords_truncated ? '<p class="small mute">Map shows the first 1500 tracks.</p>' : ''}

@@ -39,6 +39,9 @@ You can modify various parameters in the script to adjust the analysis:
 - `gapSize`: Maximum number of frames to skip when linking
 - `distance`: Maximum distance for linking localizations
 - `pixelSize_new`: Pixel size in micrometers
+- `featureTransform`: SVM feature transform, `'boxcox'` (default: Box-Cox lambdas fitted on the training tracks and
+  reused for prediction) or `'none'` (legacy: raw features; the old code's Box-Cox never took effect, so published
+  results used raw features). The default lives in `pipeline_defaults.py`.
 
 ## Note
 

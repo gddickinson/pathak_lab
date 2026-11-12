@@ -117,3 +117,11 @@ def test_static_export_holds_no_lab_data(tmp_path):
     for lab in LAB_FILES:
         rows = lab.read_text().splitlines()[1:4]
         assert not any(row[:60] in text for row in rows), lab.name
+
+
+def test_svm_feature_transform_option():
+    info = client.get("/api/info").json()
+    assert info["defaults"]["feature_transform"] == "boxcox" and info["feature_transforms"] == ["boxcox", "none"]
+    r = client.post("/api/run", data={"step_link": "1", "feature_transform": "log"},
+                    files={"file": ("l.csv", _locs_csv(), "text/csv")})
+    assert r.status_code == 400 and "feature transform" in r.json()["detail"]

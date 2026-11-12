@@ -22,8 +22,11 @@ import pandas as pd
 from .repo_scripts import ROOT, load
 
 STEPS = ["link", "features", "svm", "nn", "diffusion", "velocity", "missing", "nncount", "locerr"]
-DEFAULTS = {"pixel_size_nm": 108.0, "skip_frames": 18, "link_distance": 3.0, "min_segments": 6,
-            "radii": "3,5,10,20,30"}  # Step 2 __main__ (gapSize, distance, minLinkSegments) and Step 8 defaults
+_D = load("2_analysis/pipeline_defaults.py")  # the pipeline's single defaults module
+DEFAULTS = {"pixel_size_nm": float(_D.PIXEL_SIZE_NM), "skip_frames": _D.SKIP_FRAMES,
+            "link_distance": float(_D.LINK_DISTANCE), "min_segments": _D.MIN_SEGMENTS,
+            "radii": ",".join(str(r) for r in _D.NN_RADII), "feature_transform": _D.FEATURE_TRANSFORM}
+FEATURE_TRANSFORMS = list(_D.FEATURE_TRANSFORMS)
 TRAINING = ROOT / "flika_plugins" / "locsAndTracksPlotter" / "tdTomato_37Degree_CytoD_training_feats.csv"
 EXAMPLE = ROOT / "minimal_model" / "Endothelial_NonBapta_bin10_crop_RESULTS-FILE.csv"
 TRACK_COLS = ["n_segments", "radius_gyration", "asymmetry", "skewness", "kurtosis", "fracDimension", "netDispl",
@@ -54,6 +57,9 @@ def parse_params(form):
                       for r in str(form.get("radii") or DEFAULTS["radii"]).split(",") if r.strip()]
     except ValueError as e:
         raise AnalysisError(f"Parameter is not a number: {e}")
+    p["feature_transform"] = str(form.get("feature_transform") or DEFAULTS["feature_transform"]).lower()
+    if p["feature_transform"] not in FEATURE_TRANSFORMS:
+        raise AnalysisError(f"SVM feature transform must be one of: {', '.join(FEATURE_TRANSFORMS)}.")
     if p["pixel_size_nm"] <= 0 or p["link_distance"] <= 0 or p["skip_frames"] < 0 or p["min_segments"] < 0:
         raise AnalysisError("Pixel size and linking distance must be positive; gap and minimum length not negative.")
     steps = [s for s in STEPS if str(form.get("step_" + s, "")).lower() in ("1", "true", "on")]
@@ -155,7 +161,8 @@ def run(kind, df, params, steps, tiff=None, training=None, name="upload.csv", lo
             rg = tmp / "upload_tracksRG.csv"
             df.to_csv(rg)
             train = training if training is not None else TRAINING
-            m["svm"].predict_SPT_class(str(train), str(rg), Path(name).stem, level="")
+            m["svm"].predict_SPT_class(str(train), str(rg), Path(name).stem, level="",
+                                       feature_transform=params["feature_transform"])
             df = pd.read_csv(tmp / "upload_tracksRG_SVMPredicted.csv")
         if "nn" in steps:
             say("nearest neighbours")

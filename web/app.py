@@ -53,7 +53,7 @@ def info():
                    "functions": sum(e["n_functions"] for e in entries),
                    "pipeline_steps": sum(1 for e in scripts if e["name"].startswith("Step_")),
                    "demos": len(DEMO_ROUTES), "local_run": sum(1 for e in entries if e["local_run"])},
-        "groups": groups(), "plugins": plugins, "defaults": an.DEFAULTS, "steps": an.STEPS,
+        "groups": groups(), "plugins": plugins, "defaults": an.DEFAULTS, "feature_transforms": an.FEATURE_TRANSFORMS, "steps": an.STEPS,
         "paper": {"title": "Visualizing PIEZO1 localization and activity in hiPSC-derived single cells and organoids "
                            "with HaloTag technology", "journal": "Nature Communications 16, 5556 (2025)",
                   "doi": "10.1038/s41467-025-59150-1"},
