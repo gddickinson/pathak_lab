@@ -74,7 +74,8 @@ import skimage.io as skio
 
 # Qt-free linking and track features live next to this script (also used by the web interface)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pointLinking import PointLinker
+from pointLinking import PointLinker, addID, load_points, flatten, savetracksCSV
+from svmClassification import predict_SPT_class
 from trackFeatures import (RadiusGyrationAsymmetrySkewnessKurtosis, FractalDimension, NetDisplacementEfficiency,
                            SummedSinesCosines, getRadiusGyrationForAllTracksinDF, getFeaturesForAllTracksinDF,
                            addLagDisplacementToDF, getNearestNeighbors, getNN, addFeaturesToTracksDF)
@@ -86,14 +87,6 @@ sys.setrecursionlimit(recursionLimit)
 #print(sys.getrecursionlimit())
 
 # Function definitions
-
-def addID(file):
-    """Add ID column to CSV file"""
-    df = pd.read_csv(file)
-    df['id'] = df['id'].astype('int')
-    df['frame'] = df['frame'].astype('int') -1 #reseting first frame to zero to maych flika display
-    df.to_csv(file.split('.csv')[0] + 'ID.csv')
-
 
 def getSigma():
     ''' This function isn't complete.  I need to cut out a 20x20 pxl window around large amplitude particles '''
@@ -137,25 +130,6 @@ def get_points(I):
             y = np.mean(pts_t[:, 2])
             all_pts.append([t, x, y])
     all_pts = np.array(all_pts)
-    return all_pts
-
-
-def load_points(filename, pixelsize = 108):
-    """Load points from CSV file"""
-    #filename = open_file_gui("Open points from thunderstorm csv, filetypes='*.csv")
-    if filename is None:
-        return None
-
-    pointsDF = pd.read_csv(filename)
-    pointsDF['frame'] = pointsDF['frame'].astype(int)
-    pointsDF['x'] = pointsDF['x [nm]'] / pixelsize
-    pointsDF['y'] = pointsDF['y [nm]'] / pixelsize
-    pointsDF = pointsDF[['frame','x','y']]
-    all_pts = pointsDF.to_numpy()
-
-    print('--- Point Data loaded ---')
-    print(pointsDF)
-
     return all_pts
 
 
@@ -210,111 +184,6 @@ def refine_pts(pts, blur_window, sigma, amplitude):
         new_pts.append([pt[0], pt[1], pt[2], xfit, yfit, p[2], p[3]])
     new_pts = np.array(new_pts)
     return new_pts, True
-
-
-def flatten(l):
-    """Flatten a list of lists"""
-    return [item for sublist in l for item in sublist]
-
-def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
-    """Save tracks to CSV file"""
-    tracks = points.tracks
-    if isinstance(tracks[0][0], int):
-        tracks = [[np.ndarray.item(a) for a in b] for b in tracks]
-    txy_pts = points.txy_pts.tolist()
-
-    txy_intensities = points.intensities
-
-    txy_indexes = flatten(points.pts_idx_by_frame)
-
-
-    #filter tracks list to only include linked tracks
-    linkedTracks = [item for item in tracks if len(item) > 1]
-
-
-    #get xy coordinates and intensities for linked tracks
-    trackNumber = []
-
-    txy_intensitiesByTrack = []
-
-    txy_indexesByTrack = []
-
-
-    # for i, indices in enumerate(linkedTracks):
-    #     trackNumber.append( i )
-    #     txy_ptsByTrack.append(list(txy_pts[j] for j in indices))
-    #     #txy_intensitiesByTrack.append(list(txy_intensities[k] for k in indices))
-
-
-    frameList = []
-    xList = []
-    yList = []
-
-    for i, indices in enumerate(linkedTracks):
-        ptsList = list(txy_pts[j] for j in indices)
-
-        intensitiesList =list(txy_intensities[k] for k in indices)
-
-        if noLocsFile == False:
-            indexList =list(txy_indexes[l] for l in indices)
-
-        for pts in ptsList:
-            trackNumber.append(i)
-            frameList.append(pts[0])
-            xList.append(pts[1])
-            yList.append(pts[2])
-
-
-        for intensity in intensitiesList:
-            txy_intensitiesByTrack.append(intensity)
-
-        if noLocsFile == False:
-            for ind in indexList:
-                txy_indexesByTrack.append(ind)
-
-
-    #make dataframe of tracks, xy coordianates and intensities for linked tracks
-    if noLocsFile == False:
-        dict = {'track_number': trackNumber, 'frame':frameList, 'x': xList, 'y':yList, 'intensity': txy_intensitiesByTrack, 'file_id': txy_indexesByTrack}
-    else:
-        dict = {'track_number': trackNumber, 'frame':frameList, 'x': xList, 'y':yList, 'intensity': txy_intensitiesByTrack}
-
-    linkedtrack_DF = pd.DataFrame(dict)
-
-    if noLocsFile == False:
-        #match id to locs file values (starting at 1)
-
-        #linkedtrack_DF['file_id'] = linkedtrack_DF['file_id'] + 1
-        locs_DF = pd.read_csv(locsFileName)
-        id_list = locs_DF['id'].tolist()
-        file_id_list = linkedtrack_DF['file_id'].tolist()
-
-        idsForlinkedPoints = [id_list[i] for i in file_id_list]
-
-        linkedtrack_DF['id'] = idsForlinkedPoints
-    else:
-        linkedtrack_DF['id'] = linkedtrack_DF.index
-
-    #convert back to nm
-    linkedtrack_DF['x [nm]'] = linkedtrack_DF['x'] * 108
-    linkedtrack_DF['y [nm]'] = linkedtrack_DF['y'] * 108
-
-    #cast frames as int
-    linkedtrack_DF['frame'] = linkedtrack_DF['frame'].astype('int')
-
-    #round intensity
-    linkedtrack_DF['intensity'] = linkedtrack_DF['intensity'].round(2)
-
-    #drop file-id
-    if noLocsFile == False:
-        linkedtrack_DF = linkedtrack_DF.drop(['file_id'], axis=1)
-
-    #save df as csv
-    #linkedtrack_DF = linkedtrack_DF.sort_values('id')
-    linkedtrack_DF.to_csv(filename, index=True)
-
-
-    print('tracks file {} saved'.format(filename))
 
 
 class Points(PointLinker):
@@ -467,87 +336,6 @@ def calcFeaturesforFiles(tracksList, minNumberSegments=1):
             except Exception as e:
                 print(e)
                 print('error in RG analysis, skipping {}'.format(trackFile))
-
-
-def predict_SPT_class(train_data_path, pred_data_path, exptName, level):
-    """Computes predicted class for SPT data where
-        1:Mobile, 2:Intermediate, 3:Trapped
-
-    Args:
-        train_data_path (str): complete path to training features data file in .csv format, ex. 'C:/data/tdTomato_37Degree_CytoD_training_feats.csv'
-                               should be a .csv file with features columns, an 'Experiment' column identifying the unique experiment ('tdTomato_37Degree'),
-                               a 'TrackID' column with unique numerical IDs for each track, and an 'Elected_Label' column derived from human voting.
-        pred_data_path (str): complete path to features that need predictions in .csv format, ex. 'C:/data/newconditions/gsmtx4_feature_data.csv'
-                               should be a .csv file with features columns, an 'Experiment' column identifying the unique experiment ('GsMTx4'),
-                               and a 'TrackID' column with unique numerical IDs for each track.
-
-    Output:
-        .csv file of dataframe of prediction_file features with added SVMPredictedClass column output to pred_data_path parent folder
-    """
-    def prepare_box_cox_data(data):
-        data = data.copy()
-        for col in data.columns:
-            minVal = data[col].min()
-            if minVal <= 0:
-                data[col] += (np.abs(minVal) + 1e-15)
-        return data
-
-    train_feats = pd.read_csv(Path(train_data_path), sep=',')
-    train_feats = train_feats.loc[train_feats['Experiment'] == 'tdTomato_37Degree']
-    train_feats = train_feats[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension', 'Elected_Label']]
-    train_feats = train_feats.replace({"Elected_Label":  {"mobile":1,"confined":2, "trapped":3}})
-    X = train_feats.iloc[:, 2:-1]
-    y = train_feats.iloc[:, -1]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 0)
-    X_train_, X_test_ = prepare_box_cox_data(X_train), prepare_box_cox_data(X_test)
-    X_train_, X_test_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_train_), columns=X.columns), pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(X_test_), columns=X.columns)
-
-    for col_name in X_train.columns:
-        X_train.eval(f'{col_name} = @X_train_.{col_name}')
-        X_test.eval(f'{col_name} = @X_test_.{col_name}')
-
-    pipeline_steps = [("pca", decomposition.PCA()), ("scaler", StandardScaler()), ("SVC", SVC(kernel="rbf"))]
-    check_params = {
-        "pca__n_components" : [3],
-        "SVC__C" : [0.1, 0.5, 1, 10, 30, 40, 50, 75, 100, 500, 1000],
-        "SVC__gamma" : [0.001, 0.005, 0.01, 0.03, 0.05, 0.1, 0.5, 1., 5., 10., 50.0],
-    }
-
-    pipeline = Pipeline(pipeline_steps)
-    create_search_grid = GridSearchCV(pipeline, param_grid=check_params, cv=10)
-    create_search_grid.fit(X_train, y_train)
-    pipeline.set_params(**create_search_grid.best_params_)
-    pipeline.fit(X_train, y_train)
-    X = pd.read_csv(Path(pred_data_path), sep=',')
-
-    X = X.rename(columns={"radius_gyration" : "radiusGyration",
-                      "track_number" : "TrackID",
-                      "netDispl" : "NetDispl",
-                      "asymmetry" : "Asymmetry",
-                      "kurtosis" : "Kurtosis"
-                      }) ###GD EDIT
-
-    X['Experiment'] = exptName    ###GD EDIT
-
-    X = X[['Experiment', 'TrackID', 'NetDispl', 'Straight', 'Asymmetry', 'radiusGyration', 'Kurtosis', 'fracDimension']]
-    X_label = X['Experiment'].iloc[0]
-    X_feats = X.iloc[:, 2:]
-    X_feats_ = pd.DataFrame(PowerTransformer(method='box-cox').fit_transform(prepare_box_cox_data(X_feats)), columns=X_feats.columns)
-
-    for col_name in X_feats.columns:
-        X_feats.eval(f'{col_name} = @X_feats_.{col_name}')
-
-    X_pred = pipeline.predict(X_feats)
-    X['SVMPredictedClass'] = X_pred.astype('int')
-    X_outpath = Path(pred_data_path).parents[0] / f'{Path(pred_data_path).stem}_SVMPredicted{level}.csv'
-    #X.to_csv(X_outpath, sep=',', index=False)
-
-    #add classes to RG file ####GD EDIT
-    tracksDF = pd.read_csv(Path(pred_data_path), sep=',')
-    tracksDF['Experiment'] = X['Experiment']
-    tracksDF['SVM'] = X['SVMPredictedClass']
-
-    tracksDF.to_csv(X_outpath, sep=',', index=None)
 
 
 def classifyTracks(tracksList, train_data_path, level=''):

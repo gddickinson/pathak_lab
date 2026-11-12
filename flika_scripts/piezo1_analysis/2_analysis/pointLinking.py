@@ -10,6 +10,7 @@ Step 2's Points class subclasses PointLinker and adds the FLIKA display and imag
 import sys
 
 import numpy as np
+import pandas as pd
 
 # Deep recursion in extend_track (one level per linked point), as set in Step 2.
 recursionLimit = 1000000
@@ -85,3 +86,136 @@ class PointLinker(object):
             for frame in frames:
                 tracks_by_frame[frame].append(i)
         self.tracks_by_frame = tracks_by_frame
+
+
+def addID(file):
+    """Add ID column to CSV file"""
+    df = pd.read_csv(file)
+    df['id'] = df['id'].astype('int')
+    df['frame'] = df['frame'].astype('int') -1 #reseting first frame to zero to maych flika display
+    df.to_csv(file.split('.csv')[0] + 'ID.csv')
+
+
+def load_points(filename, pixelsize = 108):
+    """Load points from CSV file"""
+    #filename = open_file_gui("Open points from thunderstorm csv, filetypes='*.csv")
+    if filename is None:
+        return None
+
+    pointsDF = pd.read_csv(filename)
+    pointsDF['frame'] = pointsDF['frame'].astype(int)
+    pointsDF['x'] = pointsDF['x [nm]'] / pixelsize
+    pointsDF['y'] = pointsDF['y [nm]'] / pixelsize
+    pointsDF = pointsDF[['frame','x','y']]
+    all_pts = pointsDF.to_numpy()
+
+    print('--- Point Data loaded ---')
+    print(pointsDF)
+
+    return all_pts
+
+
+def flatten(l):
+    """Flatten a list of lists"""
+    return [item for sublist in l for item in sublist]
+
+
+def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
+    """Save tracks to CSV file"""
+    tracks = points.tracks
+    if isinstance(tracks[0][0], int):
+        tracks = [[np.ndarray.item(a) for a in b] for b in tracks]
+    txy_pts = points.txy_pts.tolist()
+
+    txy_intensities = points.intensities
+
+    txy_indexes = flatten(points.pts_idx_by_frame)
+
+
+    #filter tracks list to only include linked tracks
+    linkedTracks = [item for item in tracks if len(item) > 1]
+
+
+    #get xy coordinates and intensities for linked tracks
+    trackNumber = []
+
+    txy_intensitiesByTrack = []
+
+    txy_indexesByTrack = []
+
+
+    # for i, indices in enumerate(linkedTracks):
+    #     trackNumber.append( i )
+    #     txy_ptsByTrack.append(list(txy_pts[j] for j in indices))
+    #     #txy_intensitiesByTrack.append(list(txy_intensities[k] for k in indices))
+
+
+    frameList = []
+    xList = []
+    yList = []
+
+    for i, indices in enumerate(linkedTracks):
+        ptsList = list(txy_pts[j] for j in indices)
+
+        intensitiesList =list(txy_intensities[k] for k in indices)
+
+        if noLocsFile == False:
+            indexList =list(txy_indexes[l] for l in indices)
+
+        for pts in ptsList:
+            trackNumber.append(i)
+            frameList.append(pts[0])
+            xList.append(pts[1])
+            yList.append(pts[2])
+
+
+        for intensity in intensitiesList:
+            txy_intensitiesByTrack.append(intensity)
+
+        if noLocsFile == False:
+            for ind in indexList:
+                txy_indexesByTrack.append(ind)
+
+
+    #make dataframe of tracks, xy coordianates and intensities for linked tracks
+    if noLocsFile == False:
+        dict = {'track_number': trackNumber, 'frame':frameList, 'x': xList, 'y':yList, 'intensity': txy_intensitiesByTrack, 'file_id': txy_indexesByTrack}
+    else:
+        dict = {'track_number': trackNumber, 'frame':frameList, 'x': xList, 'y':yList, 'intensity': txy_intensitiesByTrack}
+
+    linkedtrack_DF = pd.DataFrame(dict)
+
+    if noLocsFile == False:
+        #match id to locs file values (starting at 1)
+
+        #linkedtrack_DF['file_id'] = linkedtrack_DF['file_id'] + 1
+        locs_DF = pd.read_csv(locsFileName)
+        id_list = locs_DF['id'].tolist()
+        file_id_list = linkedtrack_DF['file_id'].tolist()
+
+        idsForlinkedPoints = [id_list[i] for i in file_id_list]
+
+        linkedtrack_DF['id'] = idsForlinkedPoints
+    else:
+        linkedtrack_DF['id'] = linkedtrack_DF.index
+
+    #convert back to nm
+    linkedtrack_DF['x [nm]'] = linkedtrack_DF['x'] * 108
+    linkedtrack_DF['y [nm]'] = linkedtrack_DF['y'] * 108
+
+    #cast frames as int
+    linkedtrack_DF['frame'] = linkedtrack_DF['frame'].astype('int')
+
+    #round intensity
+    linkedtrack_DF['intensity'] = linkedtrack_DF['intensity'].round(2)
+
+    #drop file-id
+    if noLocsFile == False:
+        linkedtrack_DF = linkedtrack_DF.drop(['file_id'], axis=1)
+
+    #save df as csv
+    #linkedtrack_DF = linkedtrack_DF.sort_values('id')
+    linkedtrack_DF.to_csv(filename, index=True)
+
+
+    print('tracks file {} saved'.format(filename))

@@ -6,7 +6,6 @@ straightness), per-point lag displacements and in-frame nearest-neighbour distan
 import math
 
 import numpy as np
-import pandas as pd
 from scipy import spatial, stats
 from sklearn.neighbors import KDTree
 
