@@ -5,12 +5,14 @@ track, which is extended to the nearest unassigned point in the next frame withi
 `maxFramesSkipped` frames ahead. Tracks are built recursively; recursion stops at depth 10000 and sets
 `recursiveFailure` (Step 2 then skips the file unless includeRecursionProblem is set).
 
-Step 2's Points class subclasses PointLinker and adds the FLIKA display and image-intensity methods.
+getIntensities reads each point's mean 3x3-pixel intensity from the recording. Step 2's Points class subclasses
+PointLinker and adds the FLIKA track display.
 """
 import sys
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 # Deep recursion in extend_track (one level per linked point), as set in Step 2.
 recursionLimit = 1000000
@@ -86,6 +88,41 @@ class PointLinker(object):
             for frame in frames:
                 tracks_by_frame[frame].append(i)
         self.tracks_by_frame = tracks_by_frame
+
+    def getIntensities(self, dataArray):
+        #intensities retrieved from image stack using point data (converted from floats to ints)
+
+        n, w, h = dataArray.shape
+
+        #clear intensity list
+        self.intensities = []
+
+        for point in tqdm(self.txy_pts):
+            frame = int(round(point[0]))
+            x = int(round(point[1]))
+            y = int(round(point[2]))
+
+            #set x,y bounds for 3x3 pixel square
+            xMin = x - 1
+            xMax = x + 2
+
+            yMin = y - 1
+            yMax = y + 2
+
+            #deal with edge cases
+            if xMin < 0:
+                xMin = 0
+            if xMax > w:
+                xMax = w
+
+            if yMin <0:
+                yMin = 0
+            if yMax > h:
+                yMax = h
+
+            #get mean pixels values for 3x3 square
+            #self.intensities.append((np.mean(dataArray[frame][xMin:xMax,yMin:yMax]) - np.min(dataArray[frame]))) #no longer subtracting min
+            self.intensities.append(np.mean(dataArray[frame][xMin:xMax,yMin:yMax]))
 
 
 def addID(file):

@@ -219,40 +219,6 @@ class Points(PointLinker):
                 pathitem.setPath(path)
 
 
-    def getIntensities(self, dataArray):
-        #intensities retrieved from image stack using point data (converted from floats to ints)
-
-        n, w, h = dataArray.shape
-
-        #clear intensity list
-        self.intensities = []
-
-        for point in tqdm(self.txy_pts):
-            frame = int(round(point[0]))
-            x = int(round(point[1]))
-            y = int(round(point[2]))
-
-            #set x,y bounds for 3x3 pixel square
-            xMin = x - 1
-            xMax = x + 2
-
-            yMin = y - 1
-            yMax = y + 2
-
-            #deal with edge cases
-            if xMin < 0:
-                xMin = 0
-            if xMax > w:
-                xMax = w
-
-            if yMin <0:
-                yMin = 0
-            if yMax > h:
-                yMax = h
-
-            #get mean pixels values for 3x3 square
-            #self.intensities.append((np.mean(dataArray[frame][xMin:xMax,yMin:yMax]) - np.min(dataArray[frame]))) #no longer subtracting min
-            self.intensities.append(np.mean(dataArray[frame][xMin:xMax,yMin:yMax]))
 
 def skip_refinePoints(txy_pts):
     """Skip point refinement"""
@@ -697,15 +663,3 @@ if __name__ == '__main__':
 
         #overwrite result file with merged table
         joinDF.to_csv(file)
-
-
-
-
-
-
-
-
-
-
-
-
