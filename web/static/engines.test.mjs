@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { linkPoints, locsToTxy, tracksTable } from './link_engine.js';
+import { PIXEL_SIZE_NM, linkPoints, locsToTxy, tracksTable } from './link_engine.js';
 import { featuresTable, fractalDimension, netDisplacementEfficiency, rgAsymmetrySkewKurtosis, straightness } from './features_engine.js';
 import { addDiffusion, addLocalizationError, addNNCounts, addVelocity } from './mobility_engine.js';
 
@@ -31,6 +31,14 @@ for (const c of fx.link) {
   checks++;
   const table = tracksTable(txy, linked, locs.map(l => l.id), locs.map(l => l.intensity));
   compareTable(table, c.table_columns, c.table, `table skip=${c.skip}`);
+}
+
+// Pixel size: the JS default is pipeline_defaults.PIXEL_SIZE_NM; another size round-trips x [nm] as savetracksCSV does
+assert.equal(PIXEL_SIZE_NM, fx.pixel_size_nm, 'JS PIXEL_SIZE_NM = pipeline_defaults.PIXEL_SIZE_NM'); checks++;
+{
+  const c = fx.pixel_case, t2 = locsToTxy(locs, c.pixel_size_nm), linked = linkPoints(t2, c.skip, c.distance);
+  const table = tracksTable(t2, linked, locs.map(l => l.id), null, c.pixel_size_nm);
+  compareTable(table, c.table_columns, c.table, `table pixel size ${c.pixel_size_nm}`);
 }
 
 // Per-track features (unrounded)

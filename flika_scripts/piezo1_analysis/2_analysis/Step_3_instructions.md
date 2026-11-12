@@ -35,7 +35,7 @@ The script performs two main operations:
 
 You can modify the following parameters in the script:
 - `k` in the `getNearestNeighbors` function: Number of nearest neighbors to find (default is 2)
-- The pixel size conversion factor (currently set to 108 nm/pixel)
+- The pixel size conversion factor (`pixelSize` of `addNNtoSVMFiles`; default `PIXEL_SIZE_NM` = 108 nm/pixel in `pipeline_defaults.py`)
 
 ## Note
 

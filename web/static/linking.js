@@ -3,6 +3,7 @@ import { $, app, route, slider } from './core.js';
 import { drawTracks, fmt, legend } from './plot.js';
 import { data, linked, settings, trackTruth, update } from './state.js';
 import { KIND_COLOR } from './synth.js';
+import { PIXEL_SIZE_NM } from './link_engine.js';
 
 const hue = i => `hsl(${(i * 137.508) % 360} 85% 62%)`;
 
@@ -22,7 +23,7 @@ route('linking', async () => {
       <div id="leg"></div>
       <div class="stage"><canvas id="cv" role="img" aria-label="Map of synthetic localisations and linked tracks"></canvas></div>
       <div class="tiles" id="stats"></div>
-      <p class="small mute">Synthetic field of 64 × 64 pixels (108 nm), ${settings.frames} frames: mobile, confined and
+      <p class="small mute">Synthetic field of 64 × 64 pixels (${PIXEL_SIZE_NM} nm), ${settings.frames} frames: mobile, confined and
         immobile particles (each detected in 88% of frames) plus unrelated background localisations. Ground truth is
         known only because the data are simulated.</p>
       <p><a class="btn" href="#/features">Features of these tracks →</a></p>

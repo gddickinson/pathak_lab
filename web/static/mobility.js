@@ -3,6 +3,7 @@ import { $, app, esc, route } from './core.js';
 import { fmt, legend, lines, scatter, table } from './plot.js';
 import { features, mobility, perTrack, settings, trackTruth } from './state.js';
 import { KIND_COLOR } from './synth.js';
+import { PIXEL_SIZE_NM } from './link_engine.js';
 
 const nanMean = v => { const f = v.filter(Number.isFinite); return f.length ? f.reduce((s, x) => s + x, 0) / f.length : NaN; };
 
@@ -23,7 +24,7 @@ route('mobility', async () => {
     <p class="small mute">Counts are of the other rows of the table in the same frame; in the pipeline Step 7 first adds the unlinked localisations, which this demo leaves out.</p>
   </div>
   <div id="tbl"></div>
-  <p class="small mute">Units: pixels and frames, as in the scripts (108 nm pixels). Tracks: those kept on the
+  <p class="small mute">Units: pixels and frames, as in the scripts (${PIXEL_SIZE_NM} nm pixels, pipeline_defaults.py). Tracks: those kept on the
     <a href="#/features">features</a> page (more than ${settings.minSeg} points).</p>`;
   const draw = () => {
     if (features().error) { $('#tbl').innerHTML = `<p class="err">${esc(features().error)}</p>`; return; }

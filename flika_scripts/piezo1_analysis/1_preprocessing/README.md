@@ -55,7 +55,7 @@ This directory contains scripts for preparing microscopy data for PIEZO1 analysi
   thresh = 250        # Intensity threshold
   minSize = 90       # Minimum region size
   dilationRadius = 6 # Region expansion size
-  pixelSize = 108    # nm per pixel
+  pixelSize = None   # nm per pixel; None = PIXEL_SIZE_NM (108) from 2_analysis/pipeline_defaults.py
   ```
 - Features:
   - Automated threshold detection

@@ -51,7 +51,7 @@ export function runInBrowser(table, p, steps, name) {
     const L = linkPoints(txy, p.skip_frames, p.link_distance);
     if (L.recursiveFailure) warnings.push('Recursion limit reached while linking (Step 2 would skip this file).');
     warnings.push('No recording given: intensity columns are empty (Step 2 reads them from the .tif).');
-    rows = tracksTable(txy, L, locs.map(l => l.id), null);
+    rows = tracksTable(txy, L, locs.map(l => l.id), null, p.pixel_size_nm);
     if (!rows.length) throw new Error('No localisations could be linked with these settings.');
   }
   const nLinked = new Set(rows.map(r => r.track_number)).size;

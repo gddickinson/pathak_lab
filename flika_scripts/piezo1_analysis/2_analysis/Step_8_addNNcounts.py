@@ -13,7 +13,10 @@ import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
-import os, glob
+import os, glob, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from pipeline_defaults import NN_RADII  # (3, 5, 10, 20, 30) pixels
 
 from sklearn.neighbors import KDTree
 #from scipy.spatial import distance_matrix
@@ -33,7 +36,7 @@ def countNNwithRadius(train,test,r=1):
 #     return [item for sublist in l for item in sublist]
 
 
-def getNNinFrame(tracksDF, radiusList=[3,5,10,20,30]):
+def getNNinFrame(tracksDF, radiusList=NN_RADII):
     #sort by frame
     tracksDF = tracksDF.sort_values(by=['frame'])
 

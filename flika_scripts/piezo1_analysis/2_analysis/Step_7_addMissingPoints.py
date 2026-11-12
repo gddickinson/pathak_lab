@@ -12,11 +12,18 @@ import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
-import os, glob
+import os, glob, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pipeline_defaults  # PIXEL_SIZE_NM: the one pixel-size setting
 
 
 
-def addMissingLocsToDF(df, locsDF, pixelSize = 108):
+def addMissingLocsToDF(df, locsDF, pixelSize = None):
+        """Append the localisations not in df (x, y in pixels from x [nm], y [nm]; pixelSize in nm, default
+        pipeline_defaults.PIXEL_SIZE_NM)."""
+        if pixelSize is None:
+            pixelSize = pipeline_defaults.PIXEL_SIZE_NM
         #get IDs of locs in df
         IDlist = df['id']
         #convert nm to pixels

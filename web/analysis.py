@@ -138,11 +138,9 @@ def run(kind, df, params, steps, tiff=None, training=None, name="upload.csv", lo
                 warn.append("No recording given: intensity columns are empty (Step 2 reads them from the .tif).")
             if not any(len(t) > 1 for t in p.tracks):
                 raise AnalysisError("No localisations could be linked with these settings.")
-            m["link"].savetracksCSV(p, str(tmp / "tracks.csv"), str(tmp / "upload_locsID.csv"))
+            m["link"].savetracksCSV(p, str(tmp / "tracks.csv"), str(tmp / "upload_locsID.csv"),
+                                    pixelSize=params["pixel_size_nm"])
             df = pd.read_csv(tmp / "tracks.csv")
-            if params["pixel_size_nm"] != 108:
-                warn.append("savetracksCSV writes x [nm] = x × 108 whatever the pixel size; Steps 3, 4 and 7 use "
-                            "the pixel size you set.")
         n_tracks_linked = int(df["track_number"].nunique())
         if "features" in steps:
             say("features")

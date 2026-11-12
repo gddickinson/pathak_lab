@@ -93,7 +93,7 @@ path = '/path/to/data'
 parameters = {
     'skipFrames': 18,
     'distanceToLink': 3,
-    'pixelSize': 0.108,  # microns
+    'pixelSize': 108,  # nm
     'minLinkSegments': 6
 }
 
@@ -105,7 +105,8 @@ from Step_2_linkingAndClassification_trackpyOption_recursionErrorFix import link
 
 ## Key Parameters
 
-- **Pixel Size**: 0.108 μm (default)
+- **Pixel Size**: 108 nm (default; the lab's camera). All defaults (pixel size, linking settings, SVM feature
+  transform) live in `pipeline_defaults.py`; every step that converts between pixels and nm uses `PIXEL_SIZE_NM`
 - **Minimum Track Length**: 6 segments
 - **Maximum Frame Skip**: 18 frames
 - **Linking Distance**: 3 pixels

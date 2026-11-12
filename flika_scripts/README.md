@@ -69,7 +69,7 @@ compileTrackResults(exptFolder, analysisStage='NNcount')
 ## Key Parameters
 
 ### Processing
-- `pixelSize`: 0.108 μm (default)
+- `pixelSize`: 108 nm (default; `PIXEL_SIZE_NM` in `piezo1_analysis/2_analysis/pipeline_defaults.py`)
 - `binSize`: 10 frames (typical)
 - `cropSize`: Experiment-dependent
 

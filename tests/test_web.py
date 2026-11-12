@@ -125,3 +125,14 @@ def test_svm_feature_transform_option():
     r = client.post("/api/run", data={"step_link": "1", "feature_transform": "log"},
                     files={"file": ("l.csv", _locs_csv(), "text/csv")})
     assert r.status_code == 400 and "feature transform" in r.json()["detail"]
+
+
+def test_run_saves_tracks_with_the_chosen_pixel_size():
+    r = client.post("/api/run", data={"step_link": "1", "pixel_size_nm": "160"},
+                    files={"file": ("syn_locs.csv", _locs_csv(), "text/csv")})
+    assert r.status_code == 200, r.text
+    assert not any("108" in w for w in r.json()["warnings"])
+    import io
+    import pandas as pd
+    t = pd.read_csv(io.StringIO(client.get(f"/api/runs/{r.json()['run_id']}/result.csv").text))
+    assert abs(t["x [nm]"] - t["x"] * 160).max() < 1e-6

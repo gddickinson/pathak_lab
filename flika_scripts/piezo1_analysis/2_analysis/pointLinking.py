@@ -8,11 +8,15 @@ track, which is extended to the nearest unassigned point in the next frame withi
 getIntensities reads each point's mean 3x3-pixel intensity from the recording. Step 2's Points class subclasses
 PointLinker and adds the FLIKA track display.
 """
+import os
 import sys
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pipeline_defaults  # noqa: E402  PIXEL_SIZE_NM: the one pixel-size setting
 
 # Deep recursion in extend_track (one level per linked point), as set in Step 2.
 recursionLimit = 1000000
@@ -133,8 +137,10 @@ def addID(file):
     df.to_csv(file.split('.csv')[0] + 'ID.csv')
 
 
-def load_points(filename, pixelsize = 108):
-    """Load points from CSV file"""
+def load_points(filename, pixelsize = None):
+    """Load points from CSV file (x [nm], y [nm] -> pixels; pixelsize in nm, default pipeline_defaults.PIXEL_SIZE_NM)"""
+    if pixelsize is None:
+        pixelsize = pipeline_defaults.PIXEL_SIZE_NM
     #filename = open_file_gui("Open points from thunderstorm csv, filetypes='*.csv")
     if filename is None:
         return None
@@ -157,8 +163,10 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
-def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
-    """Save tracks to CSV file"""
+def savetracksCSV(points, filename, locsFileName, noLocsFile=False, pixelSize=None):
+    """Save tracks to CSV file (x [nm] = x * pixelSize; pixelSize in nm, default pipeline_defaults.PIXEL_SIZE_NM)"""
+    if pixelSize is None:
+        pixelSize = pipeline_defaults.PIXEL_SIZE_NM
     tracks = points.tracks
     if isinstance(tracks[0][0], int):
         tracks = [[np.ndarray.item(a) for a in b] for b in tracks]
@@ -237,8 +245,8 @@ def savetracksCSV(points, filename, locsFileName, noLocsFile=False):
         linkedtrack_DF['id'] = linkedtrack_DF.index
 
     #convert back to nm
-    linkedtrack_DF['x [nm]'] = linkedtrack_DF['x'] * 108
-    linkedtrack_DF['y [nm]'] = linkedtrack_DF['y'] * 108
+    linkedtrack_DF['x [nm]'] = linkedtrack_DF['x'] * pixelSize
+    linkedtrack_DF['y [nm]'] = linkedtrack_DF['y'] * pixelSize
 
     #cast frames as int
     linkedtrack_DF['frame'] = linkedtrack_DF['frame'].astype('int')

@@ -16,6 +16,11 @@ from skimage.measure import label, points_in_poly, regionprops, find_contours
 import glob, os
 from tqdm import tqdm
 import pandas as pd
+import sys
+
+# PIXEL_SIZE_NM (the one pixel-size setting) lives in 2_analysis/pipeline_defaults.py
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '2_analysis'))
+import pipeline_defaults
 
 '''https://scikit-image.org/docs/stable/auto_examples/index.html'''
 
@@ -89,8 +94,10 @@ def add_within_region_column(labels, df):
         df['within_region'] = df['within_region'] | mask[df['y'], df['x']]
     return df
 
-def removeLocsFromHighIntensityRegions(fileName, locs_fileName, thresh = 250, autoThresh = False, minSize = 90, dilationRadius = 6, pixelSize = 108, plotResult=False):
+def removeLocsFromHighIntensityRegions(fileName, locs_fileName, thresh = 250, autoThresh = False, minSize = 90, dilationRadius = 6, pixelSize = None, plotResult=False):
     ''''takes tiff stack and locs file as inputs - returns new locs file with locs in high intensity regions removed'''
+    if pixelSize is None:  # nm per pixel
+        pixelSize = pipeline_defaults.PIXEL_SIZE_NM
     #load image stack
     A = skio.imread(fileName)
 

@@ -14,7 +14,10 @@ warnings.simplefilter(action='ignore', category=Warning)
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import os, glob
+import os, glob, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pipeline_defaults  # PIXEL_SIZE_NM: the one pixel-size setting
 from sklearn.neighbors import KDTree
 import math
 from scipy import stats, spatial
@@ -109,13 +112,16 @@ def calcNNforFiles(tracksList):
         print('\n new tracks file exported to {}'.format(saveName))
 
 
-def addNNtoSVMFiles(svmFileList):
+def addNNtoSVMFiles(svmFileList, pixelSize=None):
     """
    Add nearest neighbor information to SVM classification files.
 
    Args:
    svmFileList (list): List of paths to SVM classification files
+   pixelSize (float): Pixel size in nm (default: pipeline_defaults.PIXEL_SIZE_NM, 108)
    """
+    if pixelSize is None:
+        pixelSize = pipeline_defaults.PIXEL_SIZE_NM
     for svmFile in tqdm(svmFileList):
         ##### load svm
         svmDF = pd.read_csv(svmFile)
@@ -123,9 +129,7 @@ def addNNtoSVMFiles(svmFileList):
         nnFile = svmFile.split('_SVM-ALL.csv')[0] + '_locsID_NN.csv'
         nnDF = pd.read_csv(nnFile)
         nnDF = nnDF[['id','nnDist_inFrame']]
-        nnDF['nnDist_inFrame'] = nnDF['nnDist_inFrame'] / 108
-        #nnDF['x2'] = nnDF['x [nm]'] / 108
-        #nnDF['y2'] = nnDF['y [nm]'] / 108
+        nnDF['nnDist_inFrame'] = nnDF['nnDist_inFrame'] / pixelSize
 
         #join df based on id
         svmDF = svmDF.join(nnDF.set_index('id'), on='id')

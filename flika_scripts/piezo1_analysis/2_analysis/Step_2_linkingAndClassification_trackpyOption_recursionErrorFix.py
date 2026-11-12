@@ -76,7 +76,7 @@ import skimage.io as skio
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pointLinking import PointLinker, addID, load_points, flatten, savetracksCSV
 from svmClassification import predict_SPT_class
-from pipeline_defaults import FEATURE_TRANSFORM
+from pipeline_defaults import FEATURE_TRANSFORM, PIXEL_SIZE_NM, SKIP_FRAMES, LINK_DISTANCE, MIN_SEGMENTS
 from trackFeatures import (RadiusGyrationAsymmetrySkewnessKurtosis, FractalDimension, NetDisplacementEfficiency,
                            SummedSinesCosines, getRadiusGyrationForAllTracksinDF, getFeaturesForAllTracksinDF,
                            addLagDisplacementToDF, getNearestNeighbors, getNN, addFeaturesToTracksDF)
@@ -375,8 +375,8 @@ def filterDFandLocs_SVM2(dfFile, locsIdentifer='_tracks2RG2_SVMPredicted2.csv', 
 
     return
 
-def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, distanceToLink = 3, level=''):
-    """Link files using flika"""
+def linkFiles(tiffList, pixelSize = PIXEL_SIZE_NM, frameLength = 1, skipFrames = 1, distanceToLink = 3, level=''):
+    """Link files using flika (pixelSize in nm)"""
     for fileName in tqdm(tiffList):
 
         #set file & save names
@@ -387,7 +387,7 @@ def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, dist
         #import tiff to flika
         data_window = open_file(fileName)
         #import points
-        txy_pts = load_points(pointsFileName)
+        txy_pts = load_points(pointsFileName, pixelsize=pixelSize)
         p = Points(txy_pts)
         #link points
         p.link_pts(skipFrames,distanceToLink)
@@ -395,7 +395,7 @@ def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, dist
         p.getIntensities(data_window.imageArray())
         #save tracks
         tracks = p.tracks
-        savetracksCSV(p, tracksSaveName, pointsFileName)
+        savetracksCSV(p, tracksSaveName, pointsFileName, pixelSize=pixelSize)
         #export SLD histogram
         #SLD_hist = SLD_Histogram(p, pixelSize, frameLength)
         #SLD_hist.export_histogram(autoSave = True, autoFileName = lagsHistoSaveName)
@@ -405,8 +405,8 @@ def linkFiles(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, dist
         g.m.clear()
     return
 
-def linkFilesNoFlika(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 1, distanceToLink = 3, level='', allFiles=[], includeRecursionProblem=False):
-    """Link files without using flika"""
+def linkFilesNoFlika(tiffList, pixelSize = PIXEL_SIZE_NM, frameLength = 1, skipFrames = 1, distanceToLink = 3, level='', allFiles=[], includeRecursionProblem=False):
+    """Link files without using flika (pixelSize in nm)"""
     for fileName in tqdm(tiffList):
         print('linking : {}'.format(fileName))
 
@@ -426,7 +426,7 @@ def linkFilesNoFlika(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 
         A = np.rot90(A, axes=(1,2))
         A = np.fliplr(A)
         #import points
-        txy_pts = load_points(pointsFileName)
+        txy_pts = load_points(pointsFileName, pixelsize=pixelSize)
         p = Points(txy_pts)
         #link points
         p.link_pts(skipFrames,distanceToLink)
@@ -435,19 +435,19 @@ def linkFilesNoFlika(tiffList, pixelSize = 0.108, frameLength = 1, skipFrames = 
         #save tracks
         if includeRecursionProblem:
           tracks = p.tracks
-          savetracksCSV(p, tracksSaveName, pointsFileName)
+          savetracksCSV(p, tracksSaveName, pointsFileName, pixelSize=pixelSize)
         else:
             if p.recursiveFailure == False:
                 tracks = p.tracks
-                savetracksCSV(p, tracksSaveName, pointsFileName)
+                savetracksCSV(p, tracksSaveName, pointsFileName, pixelSize=pixelSize)
             else:
                 print('recursion error, skipped {}'.format(fileName))
 
     return
 
 
-def importJSON(tiffList, pixelSize = 0.108, level=''):
-    """Import tracks from JSON files"""
+def importJSON(tiffList, pixelSize = PIXEL_SIZE_NM, level=''):
+    """Import tracks from JSON files (pixelSize in nm)"""
     for fileName in tqdm(tiffList):
 
         #set file & save names
@@ -470,7 +470,7 @@ def importJSON(tiffList, pixelSize = 0.108, level=''):
 
         #save tracks
         tracks = p.tracks
-        savetracksCSV(p, tracksSaveName, None, noLocsFile=True)
+        savetracksCSV(p, tracksSaveName, None, noLocsFile=True, pixelSize=pixelSize)
         #export SLD histogram
         #SLD_hist = SLD_Histogram(p, pixelSize, frameLength)
         #SLD_hist.export_histogram(autoSave = True, autoFileName = lagsHistoSaveName)
@@ -480,17 +480,14 @@ def importJSON(tiffList, pixelSize = 0.108, level=''):
         g.m.clear()
 
 
-def linkFiles_trackpy(tiffList, pixelSize = 0.108, skipFrames = 1, distanceToLink = 3, level='', linkingType='standard', maxDistance=5):
-    """Link files using trackpy"""
+def linkFiles_trackpy(tiffList, pixelSize = PIXEL_SIZE_NM, skipFrames = 1, distanceToLink = 3, level='', linkingType='standard', maxDistance=5):
+    """Link files using trackpy (pixelSize in nm)"""
     #try loading trackpy
     try:
         import trackpy as tp
     except:
         print("trackpy installation not detected. Install instructions at 'http://soft-matter.github.io/trackpy/v0.5.0/installation.html' ")
         return
-
-    #pixels in nm
-    pixelSize = pixelSize *1000
 
     for fileName in tqdm(tiffList):
 
@@ -567,18 +564,18 @@ if __name__ == '__main__':
 
     #minimum number of link segments (need at least 2 to avoid colinearity in feature calc)
     #minLinkSegments = 2
-    minLinkSegments = 6    #gabby
+    minLinkSegments = MIN_SEGMENTS    #gabby: 6 (pipeline_defaults.py)
 
     #max number of gap frames to skip
     #gapSize = 2
-    gapSize = 18 #gabby
+    gapSize = SKIP_FRAMES #gabby: 18 (pipeline_defaults.py)
 
     #max distance in pixels to allow a linkage
     #distance = 5
-    distance = 3 #gabby
+    distance = LINK_DISTANCE #gabby: 3 (pipeline_defaults.py)
 
-    #pixel size
-    pixelSize_new = 0.108
+    #pixel size in nm (default: pipeline_defaults.PIXEL_SIZE_NM, 108 nm for the lab's camera)
+    pixelSize_new = PIXEL_SIZE_NM
 
     #SVM feature transform: 'boxcox' (default) or 'none' (legacy: what published results used, see pipeline_defaults.py)
     featureTransform = FEATURE_TRANSFORM

@@ -35,7 +35,7 @@ The script performs the following operations:
 ## Customization
 
 You can modify the following parameters in the script:
-- `pixelSize` in the `addNNtoDF` function: Pixel size in nanometers (default is 108)
+- `pixelSize` in the `addNNtoDF` function: Pixel size in nanometers (default `PIXEL_SIZE_NM` = 108, set in `pipeline_defaults.py`)
 
 ## Note
 

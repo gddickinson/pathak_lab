@@ -1,12 +1,13 @@
 // SYNTHETIC demo data (not lab recordings): seeded 2D random walks of three kinds, sampled every frame with missed
 // detections, plus unrelated background localisations. Written as ThunderSTORM-style rows (frame from 1, nm).
 import { rng } from './core.js';
+import { PIXEL_SIZE_NM } from './link_engine.js';
 
 export const KINDS = ['mobile', 'confined', 'immobile'];
 export const KIND_COLOR = { mobile: '#4fd1ff', confined: '#ffb347', immobile: '#ff4d6d', background: '#6b7896' };
 
 export function synthesize({ seed = 7, perKind = 10, frames = 80, size = 64, pDetect = 0.88, background = 40,
-  stepMobile = 0.45, pixelSize = 108 } = {}) {
+  stepMobile = 0.45, pixelSize = PIXEL_SIZE_NM } = {}) {
   const r = rng(seed);
   const gauss = () => { let u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); };
   const raw = [];

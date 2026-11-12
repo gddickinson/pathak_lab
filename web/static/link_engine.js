@@ -5,7 +5,9 @@
 
 // ThunderSTORM rows {frame, id, xnm, ynm} -> [frame, x, y] in pixels. addID makes frames start at 0 (frame - 1);
 // load_points divides the nm coordinates by the pixel size.
-export function locsToTxy(locs, pixelSize = 108) {
+export const PIXEL_SIZE_NM = 108;  // pipeline_defaults.PIXEL_SIZE_NM (the lab's camera); the Run page sends /api/info's value
+
+export function locsToTxy(locs, pixelSize = PIXEL_SIZE_NM) {
   return locs.map(r => [Math.trunc(r.frame) - 1, r.xnm / pixelSize, r.ynm / pixelSize]);
 }
 
@@ -63,8 +65,8 @@ export function npRound(x, d) {
 }
 
 // savetracksCSV: rows of tracks with more than one point, numbered 0.. in track order; ids looked up through the
-// frame-ordered point index (as the Python does); intensity rounded to 2 decimals; x/y [nm] = pixels x 108.
-export function tracksTable(txy, linked, ids, intensities) {
+// frame-ordered point index (as the Python does); intensity rounded to 2 decimals; x/y [nm] = pixels x pixelSize.
+export function tracksTable(txy, linked, ids, intensities, pixelSize = PIXEL_SIZE_NM) {
   const flat = linked.ptsIdxByFrame.flat();
   const rows = [];
   let n = 0;
@@ -74,7 +76,7 @@ export function tracksTable(txy, linked, ids, intensities) {
       const p = txy[i];
       rows.push({ track_number: n, frame: Math.trunc(p[0]), x: p[1], y: p[2],
         intensity: intensities ? npRound(intensities[i], 2) : null, id: ids[flat[i]],
-        'x [nm]': p[1] * 108, 'y [nm]': p[2] * 108 });
+        'x [nm]': p[1] * pixelSize, 'y [nm]': p[2] * pixelSize });
     }
     n++;
   }

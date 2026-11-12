@@ -53,6 +53,9 @@ def synthetic_locs(seed=7, n_frames=60, size=48.0):
             for i, (f, x, y, inten) in enumerate(rows)]
 
 
+OTHER_PIXEL_NM = 160.0  # a non-default camera, for the pixel-size case
+
+
 def edge_tracks():
     """Hand-made tracks for corner cases: diagonal-free (b=0) tensors, y-dominant spread, repeated positions."""
     return {
@@ -83,13 +86,14 @@ def build():
     s8, s11 = load("2_analysis/Step_8_addNNcounts.py"), load("2_analysis/Step_11_addLocalizationError.py")
     locs = synthetic_locs()
     res = {"about": "SYNTHETIC data (seeded random walks) and the outputs of the repo's Python functions",
-           "locs_columns": ["frame", "id", "x [nm]", "y [nm]", "intensity"], "locs": locs, "pixel_size_nm": 108,
+           "locs_columns": ["frame", "id", "x [nm]", "y [nm]", "intensity"], "locs": locs,
+           "pixel_size_nm": load("2_analysis/pipeline_defaults.py").PIXEL_SIZE_NM,
            "link": [], "edge_tracks": {}}
     with tempfile.TemporaryDirectory() as tmp:
         lp = Path(tmp) / "syn_locs.csv"
         pd.DataFrame(locs, columns=res["locs_columns"]).to_csv(lp, index=False)
         quiet(pl.addID, str(lp))
-        txy = quiet(pl.load_points, str(Path(tmp) / "syn_locsID.csv"), pixelsize=108)
+        txy = quiet(pl.load_points, str(Path(tmp) / "syn_locsID.csv"), pixelsize=res["pixel_size_nm"])
         for skip, dist in LINK_CASES:
             p = pl.PointLinker(txy)
             quiet(p.link_pts, skip, dist)
@@ -100,6 +104,16 @@ def build():
                                 "tracks": [[int(i) for i in t] for t in p.tracks],
                                 "table_columns": ["track_number", "frame", "x", "y", "intensity", "id"],
                                 "table": records(table, ["track_number", "frame", "x", "y", "intensity", "id"])})
+        # another pixel size: load_points and savetracksCSV must use the same one (x [nm] round-trips)
+        skip, dist = LINK_CASES[1]
+        txy = quiet(pl.load_points, str(Path(tmp) / "syn_locsID.csv"), pixelsize=OTHER_PIXEL_NM)
+        p = pl.PointLinker(txy)
+        quiet(p.link_pts, skip, dist)
+        p.intensities = [r[4] for r in locs]
+        quiet(pl.savetracksCSV, p, str(Path(tmp) / "t.csv"), str(Path(tmp) / "syn_locsID.csv"), pixelSize=OTHER_PIXEL_NM)
+        cols = ["track_number", "frame", "x", "y", "id", "x [nm]", "y [nm]"]
+        res["pixel_case"] = {"pixel_size_nm": OTHER_PIXEL_NM, "skip": skip, "distance": dist, "table_columns": cols,
+                             "table": records(pd.read_csv(Path(tmp) / "t.csv"), cols)}
     tracks = pd.DataFrame(res["link"][1]["table"], columns=res["link"][1]["table_columns"])
     per = []
     for t, g in tracks.groupby("track_number", sort=False):

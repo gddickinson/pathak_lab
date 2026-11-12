@@ -14,22 +14,27 @@ warnings.simplefilter(action='ignore', category=Warning)
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import os, glob
+import os, glob, sys
 
-def addNNtoDF(df, nnDF, pixelSize = 108):
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pipeline_defaults  # PIXEL_SIZE_NM: the one pixel-size setting
+
+def addNNtoDF(df, nnDF, pixelSize = None):
     """
     Add nearest neighbor information to the main DataFrame.
 
     Args:
     df (DataFrame): Main DataFrame containing track information
     nnDF (DataFrame): DataFrame containing nearest neighbor information
-    pixelSize (float): Pixel size in nanometers (default: 108)
+    pixelSize (float): Pixel size in nanometers (default: pipeline_defaults.PIXEL_SIZE_NM, 108)
 
     Returns:
     DataFrame: Main DataFrame with added nearest neighbor information
     """
+    if pixelSize is None:
+        pixelSize = pipeline_defaults.PIXEL_SIZE_NM
     # Select only 'id' and 'nnDist_inFrame' columns from nnDF
-    nnDF = nnDF[['id', 'nnDist_inFrame']]
+    nnDF = nnDF[['id', 'nnDist_inFrame']].copy()
 
     # Convert nearest neighbor distance from nm to pixels
     nnDF['nnDist_inFrame'] = nnDF['nnDist_inFrame'] / pixelSize

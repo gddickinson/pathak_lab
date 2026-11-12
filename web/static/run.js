@@ -35,7 +35,7 @@ route('run', async () => {
       <label for="training">SVM training features (.csv, optional; default: the file in the repo)</label><input id="training" name="training" type="file" accept=".csv">`}
     </fieldset>
     <fieldset><legend>Settings</legend>
-      ${num('pixel_size_nm', 'Pixel size (nm)', d.pixel_size_nm, 'type="number" min="0" step="any"')}
+      ${num('pixel_size_nm', 'Pixel size (nm)', d.pixel_size_nm, 'type="number" min="0" step="any"', `Default ${d.pixel_size_nm} nm (the lab's camera, pipeline_defaults.py): converts x [nm] ↔ pixels when linking, saving tracks and in Steps 3+4 and 7`)}
       ${num('skip_frames', 'Gap: frames that may be skipped', d.skip_frames, 'type="number" min="0" step="1"', 'Step 2 __main__: 18')}
       ${num('link_distance', 'Linking distance (px)', d.link_distance, 'type="number" min="0" step="any"')}
       ${num('min_segments', 'Keep tracks with more than (points)', d.min_segments, 'type="number" min="0" step="1"')}
