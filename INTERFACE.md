@@ -3,7 +3,8 @@
 Python code for analysing TIRF recordings of PIEZO1 (FLIKA plugins + pipeline scripts) and its web interface.
 
 ## flika_plugins/ (FLIKA GUI plugins; need FLIKA + Qt)
-- `locsAndTracksPlotter/`: point/track display and analysis (main: `locsAndTracksPlotter.py`; `joinTracks.py`,
+- `locsAndTracksPlotter/`: point/track display and analysis (main: `locsAndTracksPlotter.py`; `joinTracks.py`
+  (with `svmTransform.py`, a copy of ShiftedBoxCox: the plugin installs standalone),
   `diffusionPlot.py`, `trackPlotter.py`, `roiZoomPlotter.py`, ...). Also holds the SVM training-features CSV (lab data).
 - `overlay/`, `overlayMultipleRecordings/`, `translateAndScale/`, `videoExporter/`: overlays, alignment, video export.
 
@@ -15,7 +16,11 @@ Python code for analysing TIRF recordings of PIEZO1 (FLIKA plugins + pipeline sc
     `savetracksCSV`.
   - `trackFeatures.py`: Rg/asymmetry/skewness/kurtosis, FractalDimension, NetDisplacementEfficiency,
     SummedSinesCosines, addLagDisplacementToDF, getNN, `addFeaturesToTracksDF`.
-  - `svmClassification.py`: `predict_SPT_class` (SVM classes 1 mobile, 2 intermediate, 3 trapped).
+  - `pipeline_defaults.py`: the one defaults module (PIXEL_SIZE_NM = 108, FEATURE_TRANSFORM = boxcox|none, Step 2
+    linking settings, Step 8 radii). Steps 2, 3, 4, 7, 8, removeAutofluoresence and web/analysis.py read it.
+  - `svmClassification.py`: `predict_SPT_class` (SVM classes 1 mobile, 2 intermediate, 3 trapped), `ShiftedBoxCox`
+    (Box-Cox fitted on training tracks, a pipeline step), `make_pipeline`, `load_training`, `train_classifier`.
+  - `trackFeatures.py` also has `orientedDominantAxis` (deterministic skewness sign).
   - `Step_2_...recursionErrorFix.py` imports these and adds FLIKA display, file batch loops and trackpy linking.
 - `3_postprocessing/`: compile/filter/summarise results. `testing_misc/`: development scripts.
 - `minimal_model/`: example recording, ThunderSTORM protocol, ROI, results table (lab data, not exported).
@@ -33,6 +38,8 @@ Python code for analysing TIRF recordings of PIEZO1 (FLIKA plugins + pipeline sc
 
 ## scripts/, tests/
 - `scripts/build_static.py` (Pages export), `scripts/screenshots.py` (smoke test), `scripts/make_engine_fixture.py`.
-- `tests/test_analysis_fixes.py` (regression tests for fixed bugs), `tests/test_web.py`, `tests/test_engine_fixture.py`,
+- `tests/test_analysis_fixes.py` (regression tests for fixed bugs), `tests/test_svm_transform.py`,
+  `tests/test_pixel_size.py`, `tests/test_skewness_orientation.py`, `tests/test_flika_copies.py` (Step 10 part needs
+  the flika_new env), `tests/test_web.py`, `tests/test_engine_fixture.py`,
   `tests/script_loader.py`.
 - `run_web.py` (port 8202), `requirements-web.txt`, `.github/workflows/pages.yml`.

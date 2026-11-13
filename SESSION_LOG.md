@@ -18,3 +18,19 @@
 - Web: catalogue of all 98 .py files, pipeline page, three demos on synthetic data (JS ports node-tested against
   Python: 32k checks), Run page (local: repo Python incl. SVM; static: JS ports in browser).
 - Lab data (minimal_model recording/results, SVM training CSV) kept out of the static export (test).
+
+## 2026-11-12: decisions from George applied (SVM transform, pixel size, skewness, remaining numpy/pandas patterns)
+- SVM Box-Cox now applied: `ShiftedBoxCox` pipeline step, lambdas fitted on the training tracks and reused for
+  prediction. Option `feature_transform` = `boxcox` (default, `pipeline_defaults.py`) | `none` (legacy, as published):
+  Step 2 `featureTransform`, JoinTracks `featureTransform` (plugin + testing_misc), web Run form. No desktop dialog runs
+  the SVM. Committed training CSV: 10-fold CV accuracy none 89.5% vs boxcox 86.4% (held-out 20%: 89.5% vs 84.5%);
+  CytoD rows: 106/1000 change class; minimal_model: `none` reproduces the committed SVM column for all 119 tracks,
+  `boxcox` agrees on 55.5%. Shift margin / Yeo-Johnson variants give the same picture (the change is Box-Cox itself).
+- Pixel size: one setting `PIXEL_SIZE_NM` (108 nm, the lab's camera) threaded through load_points, savetracksCSV, Step
+  2 (pixelSize now in nm), Steps 3, 4, 7, removeAutofluoresence, the web app and the JS port (node test at 160 nm).
+- Skewness: axis oriented along the net displacement (`orientedDominantAxis`), so mirror/rotation/time reversal keep
+  it; |skewness| unchanged, sign flips for 47 of 111 minimal_model tracks; SVM does not use it.
+- numpy 2 / pandas 3 patterns fixed in Step 10, JoinTracks (plugin + testing_misc), calcuateRGandFeatures; also
+  JoinTracks.join kept only the last group, and Step 10 addPointsToUnbinnedTracks copied features by index alignment
+  (NaN rows). Step 10 tested with flika_new (skipped without FLIKA).
+- Tests: `pytest tests` 141 passed, 2 skipped (Step 10, no FLIKA in the venv); flika_new: 27 passed; node 36,049 checks.
