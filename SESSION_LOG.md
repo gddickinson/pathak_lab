@@ -34,3 +34,6 @@
   JoinTracks.join kept only the last group, and Step 10 addPointsToUnbinnedTracks copied features by index alignment
   (NaN rows). Step 10 tested with flika_new (skipped without FLIKA).
 - Tests: `pytest tests` 141 passed, 2 skipped (Step 10, no FLIKA in the venv); flika_new: 27 passed; node 36,049 checks.
+- Follow-up decisions: SVM `feature_transform` default is now `none` (raw features, as published; CV 89.5 % vs 86.4 %
+  for `boxcox`, which stays an option). Step 10 now adds the unlinked localisations back (they were taken after being
+  removed); test case: 46 -> 49 rows, track neighbour counts within 3/5/10 px 12/12/12 -> 15/16/16.
