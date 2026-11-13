@@ -8,8 +8,8 @@ const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
 
 // numpy's np.linalg.eig on the symmetric 2x2 gyration tensor [[a, b], [b, d]] (LAPACK dgeev/dlanv2): the first
 // eigenvalue is the larger one when a >= d, the smaller one otherwise; eigenvectors form a rotation matrix. Python
-// takes the eigenvector of the largest eigenvalue (first one on ties). Its sign is LAPACK's choice, and the sign of
-// the skewness follows it: this reproduces numpy's sign exactly.
+// takes the eigenvector of the largest eigenvalue (first one on ties). LAPACK's sign is arbitrary, so trackFeatures
+// re-orients it (orientedDominantAxis below); this reproduces numpy's vector exactly, which matters only on ties.
 export function dominantEigenvector(a, b, d) {
   if (b === 0) return a >= d ? [1, 0] : [0, 1];
   const p = (a - d) / 2, r = Math.hypot(p, b);
@@ -28,6 +28,16 @@ function moments(v) {
   return [m3 / m2 ** 1.5, m4 / (m2 * m2) - 3];
 }
 
+// trackFeatures.orientedDominantAxis: point the axis along the net displacement (first -> last point); if that is
+// perpendicular to it, make the first non-zero component positive. Skewness is then unchanged by rotating,
+// mirroring or time-reversing a track.
+export function orientedDominantAxis(points, v) {
+  const n = points.length;
+  let net = (points[n - 1][0] - points[0][0]) * v[0] + (points[n - 1][1] - points[0][1]) * v[1];
+  if (net === 0) net = v[0] !== 0 ? v[0] : (v[1] !== 0 ? v[1] : 1);
+  return net < 0 ? [-v[0], -v[1]] : v;
+}
+
 export function rgAsymmetrySkewKurtosis(points) {
   const n = points.length, cx = mean(points.map(p => p[0])), cy = mean(points.map(p => p[1]));
   let a = 0, b = 0, d = 0;
@@ -36,7 +46,7 @@ export function rgAsymmetrySkewKurtosis(points) {
   const half = (a - d) / 2, r = Math.hypot(half, b), l1 = (a + d) / 2 + r, l2 = (a + d) / 2 - r;
   const rg = Math.sqrt(l1 + l2);
   const asymmetry = -Math.log(1 - ((l1 - l2) ** 2) / (2 * (l1 + l2) ** 2));
-  const v = dominantEigenvector(a, b, d), vv = v[0] * v[0] + v[1] * v[1];
+  const v = orientedDominantAxis(points, dominantEigenvector(a, b, d)), vv = v[0] * v[0] + v[1] * v[1];
   const proj = [];
   for (let i = 1; i < n; i++) proj.push(((points[i][0] - points[i - 1][0]) * v[0] + (points[i][1] - points[i - 1][1]) * v[1]) / vv);
   const [skewness, kurtosis] = moments(proj);

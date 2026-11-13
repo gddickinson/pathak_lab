@@ -12,6 +12,20 @@ from sklearn.neighbors import KDTree
 
 # Functions for calculating track features
 
+def orientedDominantAxis(points_array, axis):
+    """Give the dominant eigenvector a deterministic sign (LAPACK's is arbitrary, and the sign of the skewness follows
+    it): point it along the track's net displacement (first -> last point). If the net displacement is perpendicular
+    to the axis (e.g. a closed loop), make its first non-zero component positive. With this convention the skewness is
+    unchanged by rotating, mirroring or time-reversing a track; positive skewness = long steps in the direction of
+    net travel along the axis."""
+    axis = np.asarray(axis, dtype=float)
+    net = float(np.dot(points_array[-1] - points_array[0], axis))
+    if net == 0:
+        nz = axis[np.nonzero(axis)[0]]
+        net = nz[0] if len(nz) else 1.0
+    return -axis if net < 0 else axis
+
+
 # Radius of Gyration and Asymmetry
 def RadiusGyrationAsymmetrySkewnessKurtosis(trackDF):
     """Calculate radius of gyration, asymmetry, skewness, and kurtosis for a track"""
@@ -30,7 +44,7 @@ def RadiusGyrationAsymmetrySkewnessKurtosis(trackDF):
     asymmetry_denominator = 2 * (pow((eig_values[0] + eig_values[1]), 2))
     asymmetry_value = - math.log(1 - (asymmetry_numerator / asymmetry_denominator))
     maxcol = list(eig_values).index(max(eig_values))
-    dominant_eig_vect = eig_vectors[:, maxcol]
+    dominant_eig_vect = orientedDominantAxis(points_array, eig_vectors[:, maxcol])
     points_a = points_array[:-1]
     points_b = points_array[1:]
     ba = points_b - points_a
