@@ -145,9 +145,9 @@ def addLagDisplacementToDF(tracksDF):
     return tracksDF
 
 def addPointsToUnbinnedTracks(df, tiffFile, roi_1, cameraEstimate, bin_size = 10):
-    #remove unlinked points
+    #set unlinked points aside (they are added back at the end; this used to run after removing them, so none were)
+    unlinked = df[df['track_number'].isna()].copy()
     df = df[~df['track_number'].isna()]
-    unlinked = df[df['track_number'].isna()]
 
     #get track_ids
     trackList = df['track_number'].unique()
@@ -249,8 +249,9 @@ def addPointsToUnbinnedTracks(df, tiffFile, roi_1, cameraEstimate, bin_size = 10
     #drop intermediate cols
     newDF = newDF.drop(columns=['x2', 'y2', 'x2-x1_sqr', 'y2-y1_sqr', 'distance', 'mask'])
 
-    #add unlinked points back
-    unlinked = unlinked[newDF.columns]
+    #add unlinked points back, on the unbinned time axis like the tracks (columns they lack stay NaN)
+    unlinked['frame'] = unlinked['frame'] * bin_size
+    unlinked = unlinked.reindex(columns=newDF.columns)
     newDF = pd.concat([newDF, unlinked])
     return newDF
 
@@ -300,9 +301,9 @@ def addMissingPoints(df, tiffFile, roi_1, cameraEstimate, tracksToKeep='all', gr
     df['intensity_roiOnMeanXY - smoothed roi_1'] = None
     df['intensity - smoothed roi_1'] = None
 
-    #remove unlinked points
+    #set unlinked points aside (they are added back at the end; this used to run after removing them, so none were)
+    unlinked = df[df['track_number'].isna()].copy()
     df = df[~df['track_number'].isna()]
-    unlinked = df[df['track_number'].isna()]
 
     #filter SVM type 3
     df_mobile = df[df['SVM'] != 3]
@@ -428,8 +429,8 @@ def addMissingPoints(df, tiffFile, roi_1, cameraEstimate, tracksToKeep='all', gr
     #drop intermediate cols
     newDF = newDF.drop(columns=['x2', 'y2', 'x2-x1_sqr', 'y2-y1_sqr', 'distance', 'mask'])
 
-    #add mobile + unlinked points back
-    unlinked = unlinked[newDF.columns]
+    #add mobile + unlinked points back (columns they lack stay NaN)
+    unlinked = unlinked.reindex(columns=newDF.columns)
     df_mobile = df_mobile[newDF.columns]
     if tracksToKeep == 'all':
         newDF = pd.concat([newDF, df_mobile])

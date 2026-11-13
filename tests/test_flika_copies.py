@@ -132,3 +132,29 @@ def test_step10_missing_points_on_trapped_sites(tmp_path):
     trapped = out[out["SVM"] == 3]
     assert len(trapped) == 40 and sorted(trapped["frame"].tolist()) == list(range(40))
     assert (out["SVM"] == 1).sum() == 6
+
+
+def _with_unlinked(df):
+    """Unlinked localisations (track_number NaN), as Step 7 adds them: near track 0's first point, in frames 0 and 2."""
+    t0 = df[df["track_number"] == 0].iloc[0]
+    extra = pd.DataFrame({"frame": [0, 2, 2], "x": t0["x"] + np.array([1.0, 1.5, 40.0]), "y": t0["y"],
+                          "track_number": np.nan, "id": [900, 901, 902], "intensity": 50.0})
+    return pd.concat([df, extra], ignore_index=True)
+
+
+def test_step10_adds_unlinked_points_back(tmp_path):
+    """Step 10 took the unlinked rows after removing them, so 'add unlinked points back' added nothing (and Step 10's
+    neighbour counts, run on its output, missed every unlinked localisation)."""
+    s10 = _step10()
+    df, tif = _binned(tmp_path)
+    df = _with_unlinked(df)
+    out = s10.addMissingPoints(df.copy(), tif, np.ones(40), np.zeros(40), tracksToKeep="all", grouping="none")
+    un = out[out["track_number"].isna()]
+    assert len(un) == 3 and un["intensity"].eq(50.0).all()
+    nn = s10.getNNinFrame(out, radiusList=[3])
+    near = nn[(nn["track_number"] == 0) & (nn["frame"].isin([0, 2]))]["nnCountInFrame_within_3_pixels"]
+    assert (near >= 1).all()  # track 0 now has the unlinked localisation within 3 px in frames 0 and 2
+    out = s10.addPointsToUnbinnedTracks(df.copy(), tif, np.ones(40), np.zeros(40), bin_size=2)
+    un = out[out["track_number"].isna()]
+    assert len(un) == 3 and un["intensity"].eq(50.0).all()
+    assert sorted(un["frame"].tolist()) == [0, 4, 4]  # on the unbinned time axis, like the tracks
