@@ -28,12 +28,20 @@ def RadiusGyrationAsymmetrySkewnessKurtosis(trackDF):
     normed_points = points_array - center[None, :]
     radiusGyration_tensor = np.einsum('im,in->mn', normed_points, normed_points)/len(points_array)
     eig_values, eig_vectors = np.linalg.eig(radiusGyration_tensor)
+    # the tensor is symmetric, so its eigenvalues are real; newer numpy returns them as complex arrays
+    eig_values, eig_vectors = np.real(eig_values), np.real(eig_vectors)
     radius_gyration_value = np.sqrt(np.sum(eig_values))
     asymmetry_numerator = pow((eig_values[0] - eig_values[1]), 2)
     asymmetry_denominator = 2 * (pow((eig_values[0] + eig_values[1]), 2))
     asymmetry_value = - math.log(1 - (asymmetry_numerator / asymmetry_denominator))
     maxcol = list(eig_values).index(max(eig_values))
     dominant_eig_vect = eig_vectors[:, maxcol]
+    # deterministic sign (as trackFeatures.orientedDominantAxis): along the net displacement, else first non-zero > 0
+    net = float(np.dot(points_array[-1] - points_array[0], dominant_eig_vect))
+    if net == 0:
+        net = next((c for c in dominant_eig_vect if c != 0), 1.0)
+    if net < 0:
+        dominant_eig_vect = -dominant_eig_vect
     points_a = points_array[:-1]
     points_b = points_array[1:]
     ba = points_b - points_a
@@ -94,7 +102,7 @@ def SummedSinesCosines(points_array):
     ab = points_set_b - points_set_a
     bc = points_set_c - points_set_b
     # Evaluate sin and cos values
-    cross_products = np.cross(ab, bc)
+    cross_products = ab[:, 0] * bc[:, 1] - ab[:, 1] * bc[:, 0]  # z of the 2D cross product (np.cross needs 3D in numpy 2)
     dot_products = np.einsum('ij,ij->i', ab, bc)
     product_magnitudes_ab_bc = np.linalg.norm(ab, axis=1) * np.linalg.norm(bc, axis=1)
     cos_vals = dot_products / product_magnitudes_ab_bc

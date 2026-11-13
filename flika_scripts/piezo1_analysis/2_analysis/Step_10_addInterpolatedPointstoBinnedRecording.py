@@ -189,8 +189,8 @@ def addPointsToUnbinnedTracks(df, tiffFile, roi_1, cameraEstimate, bin_size = 10
 
         #set positions relative to origin of 0,0
         minFrame = tempDF['frame'].min()
-        origin_X = float(tempDF[tempDF['frame'] == minFrame]['x'])
-        origin_Y = float(tempDF[tempDF['frame'] == minFrame]['y'])
+        origin_X = float(tempDF[tempDF['frame'] == minFrame]['x'].iloc[0])
+        origin_Y = float(tempDF[tempDF['frame'] == minFrame]['y'].iloc[0])
         tempDF['zeroed_X'] = tempDF['x'] - origin_X
         tempDF['zeroed_Y'] = tempDF['y'] - origin_Y
         #generate lag numbers
@@ -210,7 +210,7 @@ def addPointsToUnbinnedTracks(df, tiffFile, roi_1, cameraEstimate, bin_size = 10
         'nnDist_inFrame']
 
         for prop in props_list:
-            tempDF[prop] = trackDF[prop]
+            tempDF[prop] = trackDF[prop].iloc[0]  #was aligned on the index, so most rows got NaN
 
         tempDF['n_segments'] = len(allFrames)
 
@@ -231,7 +231,7 @@ def addPointsToUnbinnedTracks(df, tiffFile, roi_1, cameraEstimate, bin_size = 10
     newDF['lag_squared'] = np.square(newDF['lag'])
 
     #add delta-t for each lag
-    newDF['dt'] = np.insert(newDF['frame'].to_numpy()[1:],-1,0) - newDF['frame'].to_numpy()
+    newDF['dt'] = np.append(newDF['frame'].to_numpy()[1:], 0) - newDF['frame'].to_numpy()  #next row's frame (0 after the last row)
     newDF['dt'] = newDF['dt'].mask(newDF['dt'] <= 0, None)
     #instantaneous velocity
     newDF['velocity'] = newDF['lag']/newDF['dt']
@@ -363,8 +363,8 @@ def addMissingPoints(df, tiffFile, roi_1, cameraEstimate, tracksToKeep='all', gr
 
         #set positions relative to origin of 0,0
         minFrame = tempDF['frame'].min()
-        origin_X = float(tempDF[tempDF['frame'] == minFrame]['x'])
-        origin_Y = float(tempDF[tempDF['frame'] == minFrame]['y'])
+        origin_X = float(tempDF[tempDF['frame'] == minFrame]['x'].iloc[0])
+        origin_Y = float(tempDF[tempDF['frame'] == minFrame]['y'].iloc[0])
         tempDF['zeroed_X'] = tempDF['x'] - origin_X
         tempDF['zeroed_Y'] = tempDF['y'] - origin_Y
         #generate lag numbers
@@ -414,7 +414,7 @@ def addMissingPoints(df, tiffFile, roi_1, cameraEstimate, tracksToKeep='all', gr
     newDF['lag_squared'] = np.square(newDF['lag'])
 
     #add delta-t for each lag
-    newDF['dt'] = np.insert(newDF['frame'].to_numpy()[1:],-1,0) - newDF['frame'].to_numpy()
+    newDF['dt'] = np.append(newDF['frame'].to_numpy()[1:], 0) - newDF['frame'].to_numpy()  #next row's frame (0 after the last row)
     newDF['dt'] = newDF['dt'].mask(newDF['dt'] <= 0, None)
     #instantaneous velocity
     newDF['velocity'] = newDF['lag']/newDF['dt']

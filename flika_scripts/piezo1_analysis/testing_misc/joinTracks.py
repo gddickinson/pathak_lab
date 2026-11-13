@@ -46,12 +46,20 @@ class JoinTracks():
         normed_points = points_array - center[None, :]
         radiusGyration_tensor = np.einsum('im,in->mn', normed_points, normed_points)/len(points_array)
         eig_values, eig_vectors = np.linalg.eig(radiusGyration_tensor)
+        # the tensor is symmetric, so its eigenvalues are real; newer numpy returns them as complex arrays
+        eig_values, eig_vectors = np.real(eig_values), np.real(eig_vectors)
         radius_gyration_value = np.sqrt(np.sum(eig_values))
         asymmetry_numerator = pow((eig_values[0] - eig_values[1]), 2)
         asymmetry_denominator = 2 * (pow((eig_values[0] + eig_values[1]), 2))
         asymmetry_value = - math.log(1 - (asymmetry_numerator / asymmetry_denominator))
         maxcol = list(eig_values).index(max(eig_values))
         dominant_eig_vect = eig_vectors[:, maxcol]
+        # deterministic sign (as trackFeatures.orientedDominantAxis): along the net displacement, else first non-zero > 0
+        net = float(np.dot(points_array[-1] - points_array[0], dominant_eig_vect))
+        if net == 0:
+            net = next((c for c in dominant_eig_vect if c != 0), 1.0)
+        if net < 0:
+            dominant_eig_vect = -dominant_eig_vect
         points_a = points_array[:-1]
         points_b = points_array[1:]
         ba = points_b - points_a
@@ -111,7 +119,7 @@ class JoinTracks():
         ab = points_set_b - points_set_a
         bc = points_set_c - points_set_b
         # Evaluate sin and cos values
-        cross_products = np.cross(ab, bc)
+        cross_products = ab[:, 0] * bc[:, 1] - ab[:, 1] * bc[:, 0]  # z of the 2D cross product (np.cross needs 3D in numpy 2)
         dot_products = np.einsum('ij,ij->i', ab, bc)
         product_magnitudes_ab_bc = np.linalg.norm(ab, axis=1) * np.linalg.norm(bc, axis=1)
         cos_vals = dot_products / product_magnitudes_ab_bc
@@ -361,7 +369,7 @@ class JoinTracks():
             
             if check == False:
                 framesToKeep.extend(trackDF_frames)
-                newDF = newDF.append(trackDF)
+                newDF = pd.concat([newDF, trackDF])
             
         return newDF    
 
@@ -376,8 +384,8 @@ class JoinTracks():
                 trackDF = df[df['track_number']==track]
                 #set positions relative to origin of 0,0
                 minFrame = trackDF['frame'].min()
-                origin_X = float(trackDF[trackDF['frame'] == minFrame]['x'])
-                origin_Y = float(trackDF[trackDF['frame'] == minFrame]['y'])
+                origin_X = float(trackDF[trackDF['frame'] == minFrame]['x'].iloc[0])
+                origin_Y = float(trackDF[trackDF['frame'] == minFrame]['y'].iloc[0])
                 trackDF['zeroed_X'] = trackDF['x'] - origin_X 
                 trackDF['zeroed_Y'] = trackDF['y'] - origin_Y  
                 #generate lag numbers
@@ -413,7 +421,7 @@ class JoinTracks():
     
         
             #add delta-t for each lag
-            newDF['dt'] = np.insert(newDF['frame'].to_numpy()[1:],-1,0) - newDF['frame'].to_numpy()        
+            newDF['dt'] = np.append(newDF['frame'].to_numpy()[1:], 0) - newDF['frame'].to_numpy()  #next row's frame (0 after the last row)        
             newDF['dt'] = newDF['dt'].mask(newDF['dt'] <= 0, None)
             #instantaneous velocity
             newDF['velocity'] = newDF['lag']/newDF['dt']
@@ -451,17 +459,17 @@ class JoinTracks():
               
             #classifyTracks(tracksList, trainpath, level='_cutoff_{}'.format(distance)) #uncomment if running multiple cut off values
             '''This is slow''' #TODO!
-            svmDF = self.predict_SPT_class(self.train_data_path, rgDF, str(df['Experiment'][0]), level='')
+            svmDF = self.predict_SPT_class(self.train_data_path, rgDF, str(df['Experiment'].iloc[0]), level='')
 
             #add diffusion
             diffDF = self.addDiffusiontoDF(svmDF)
             #add velocity
             velDF =  self.addVelocitytoDF(diffDF)
 
-            #append joined track to df
-            newDF = df.append(velDF)
+            #append joined track to df (kept for the next group: each group used to replace the last)
+            df = pd.concat([df, velDF])
                    
-        return newDF
+        return df
     
 joinTracks = JoinTracks()
 
