@@ -16,7 +16,7 @@ const STEP_INFO = [
 ];
 const BROWSER = ['link', 'features', 'diffusion', 'velocity', 'nncount', 'locerr'];
 const DEFAULT_ON = ['link', 'features', 'diffusion', 'velocity', 'nncount', 'locerr'];
-const FT_LABEL = { boxcox: 'Box-Cox (default)', none: 'None (legacy, as published)' };
+const FT_LABEL = { none: 'None (default, as published)', boxcox: 'Box-Cox' };
 let last = null;
 
 route('run', async () => {
@@ -43,8 +43,9 @@ route('run', async () => {
       <label for="feature_transform">SVM feature transform</label>
       <select id="feature_transform" name="feature_transform" ${st ? 'disabled' : ''}>
         ${(info.feature_transforms || [d.feature_transform]).map(t => `<option value="${t}" ${t === d.feature_transform ? 'selected' : ''}>${esc(FT_LABEL[t] || t)}</option>`).join('')}
-      </select><p class="hint">Box-Cox lambdas are fitted on the training tracks and reused for yours. "None" is the legacy
-      behaviour that published results used (the old code's Box-Cox never took effect).${st ? ' The SVM needs the local app.' : ''}</p>
+      </select><p class="hint">"None" uses the raw features, as published results did (the old code's Box-Cox never took effect).
+      Box-Cox fits its lambdas on the training tracks and reuses them for yours. 10-fold CV accuracy on the lab's
+      training set: none 89.5 %, Box-Cox 86.4 %.${st ? ' The SVM needs the local app.' : ''}</p>
     </fieldset>
     <fieldset><legend>Steps</legend>
       ${STEP_INFO.map(([k, l, h]) => `<label class="check"><input type="checkbox" name="step_${k}" value="1" ${DEFAULT_ON.includes(k) ? 'checked' : ''} ${st && !BROWSER.includes(k) ? 'disabled' : ''}>

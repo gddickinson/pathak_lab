@@ -35,7 +35,7 @@ class JoinTracks():
     def __init__(self):
         #minimum number of link segments
         self.minLinkSegments = 4
-        #SVM feature transform: 'boxcox' (default) or 'none' (legacy)
+        #SVM feature transform: 'none' (default, as published) or 'boxcox'
         self.featureTransform = FEATURE_TRANSFORM        
 
     

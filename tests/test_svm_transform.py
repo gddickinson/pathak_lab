@@ -56,9 +56,16 @@ def test_boxcox_is_applied(tmp_path):
     """Box-Cox (with fitted lambdas and standardisation) makes the classifier blind to the units of a strictly
     positive feature; raw features feed PCA unscaled, so multiplying one column by 1000 changes the classes."""
     svm = load("2_analysis/svmClassification.py")
-    a = _classes(svm, _write(tmp_path, 1.0))
-    b = _classes(svm, _write(tmp_path, 1000.0))
+    a = _classes(svm, _write(tmp_path, 1.0), feature_transform="boxcox")
+    b = _classes(svm, _write(tmp_path, 1000.0), feature_transform="boxcox")
     assert a == b
+
+
+def test_default_is_raw_features():
+    """Default 'none': Box-Cox was less accurate on the lab's labelled tracks (CV 86.4 % vs 89.5 %)."""
+    svm = load("2_analysis/svmClassification.py")
+    assert svm.check_transform(None) == "none"
+    assert [n for n, _ in svm.make_pipeline().steps] == ["pca", "scaler", "SVC"]
 
 
 def test_boxcox_lambdas_fit_on_training_and_reused():
@@ -142,7 +149,8 @@ def test_join_tracks_copies_apply_boxcox(tmp_path, which):
         got = []
         for i in range(0, len(pred), 3):
             j = jt.JoinTracks()
-            assert j.featureTransform == "boxcox"
+            assert j.featureTransform == "none"  # default
+            j.featureTransform = "boxcox"
             row = pred.iloc[[i]].reset_index(drop=True)
             if which == "plugin":
                 jt.train_data_path = str(d / "train.csv")

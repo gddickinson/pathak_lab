@@ -40,9 +40,9 @@ You can modify various parameters in the script to adjust the analysis:
 - `distance`: Maximum distance for linking localizations
 - `pixelSize_new`: Pixel size in nanometres (default `PIXEL_SIZE_NM` = 108 nm, the lab's camera, set in
   `pipeline_defaults.py`); used to convert x [nm] to pixels when loading points and back when saving tracks
-- `featureTransform`: SVM feature transform, `'boxcox'` (default: Box-Cox lambdas fitted on the training tracks and
-  reused for prediction) or `'none'` (legacy: raw features; the old code's Box-Cox never took effect, so published
-  results used raw features). The default lives in `pipeline_defaults.py`.
+- `featureTransform`: SVM feature transform, `'none'` (default: raw features, as in published results; the old
+  code's Box-Cox never took effect) or `'boxcox'` (Box-Cox lambdas fitted on the training tracks and reused for
+  prediction). 10-fold CV accuracy on the committed training CSV: none 89.5 %, boxcox 86.4 % (held-out 20 %: 89.5 % vs 84.5 %). The default lives in `pipeline_defaults.py`.
 
 ## Note
 

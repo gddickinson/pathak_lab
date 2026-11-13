@@ -2,14 +2,15 @@
 
 Copy of ShiftedBoxCox in flika_scripts/piezo1_analysis/2_analysis/svmClassification.py (the plugin is installed on
 its own, so it cannot import the pipeline scripts); tests/test_svm_transform.py checks the two copies agree.
-FEATURE_TRANSFORM mirrors 2_analysis/pipeline_defaults.py: 'boxcox' (default) or 'none' (legacy, as published).
+FEATURE_TRANSFORM mirrors 2_analysis/pipeline_defaults.py: 'none' (default, as published) or 'boxcox'.
+10-fold CV accuracy on the committed training CSV: none 89.5 %, boxcox 86.4 % (held-out 20 %: 89.5 % vs 84.5 %).
 """
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import PowerTransformer
 
-FEATURE_TRANSFORMS = ("boxcox", "none")
-FEATURE_TRANSFORM = "boxcox"
+FEATURE_TRANSFORMS = ("none", "boxcox")
+FEATURE_TRANSFORM = "none"
 
 
 class ShiftedBoxCox(BaseEstimator, TransformerMixin):

@@ -33,7 +33,7 @@ class JoinTracks():
         self.train_data_path = '/Users/george/Data/from_Gabby/gabby_scripts/workFlow/training_data/tdTomato_37Degree_CytoD_training_feats.csv'
         #minimum number of link segments
         self.minLinkSegments = 4
-        #SVM feature transform: 'boxcox' (default) or 'none' (legacy)
+        #SVM feature transform: 'none' (default, as published) or 'boxcox'
         self.featureTransform = FEATURE_TRANSFORM        
 
     

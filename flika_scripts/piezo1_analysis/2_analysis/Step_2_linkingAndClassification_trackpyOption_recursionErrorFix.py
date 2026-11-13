@@ -306,7 +306,7 @@ def calcFeaturesforFiles(tracksList, minNumberSegments=1):
 
 
 def classifyTracks(tracksList, train_data_path, level='', feature_transform=FEATURE_TRANSFORM):
-    """Classify tracks using SVM (feature_transform: 'boxcox' or 'none' = legacy, see pipeline_defaults.py)"""
+    """Classify tracks using SVM (feature_transform: 'none' or 'boxcox', see pipeline_defaults.py)"""
     for pred_data_path in tqdm(tracksList):
         exptName = os.path.basename(pred_data_path).split('_MMStack')[0]
         predict_SPT_class(train_data_path, pred_data_path, exptName, level=level, feature_transform=feature_transform)
@@ -577,7 +577,7 @@ if __name__ == '__main__':
     #pixel size in nm (default: pipeline_defaults.PIXEL_SIZE_NM, 108 nm for the lab's camera)
     pixelSize_new = PIXEL_SIZE_NM
 
-    #SVM feature transform: 'boxcox' (default) or 'none' (legacy: what published results used, see pipeline_defaults.py)
+    #SVM feature transform: 'none' (default, as published; more accurate on the lab's training set) or 'boxcox' (see pipeline_defaults.py)
     featureTransform = FEATURE_TRANSFORM
 
     #trackpy options

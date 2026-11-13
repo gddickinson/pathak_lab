@@ -7,7 +7,9 @@ file and writes a *_tracksRG.csv file back with an SVM column: 1 mobile, 2 inter
 feature_transform (default pipeline_defaults.FEATURE_TRANSFORM):
   "boxcox"  ShiftedBoxCox is the first pipeline step: its shifts and lambdas are fitted on the training features (in
             each cross-validation fold, then on the whole training split) and reused unchanged at prediction.
-  "none"    raw features (legacy: the old code's Box-Cox never took effect, so published results used raw features).
+  "none"    raw features (the default; the old code's Box-Cox never took effect, so published results used these).
+  10-fold CV accuracy on the committed training CSV: n
+  one 89.5 %, boxcox 86.4 % (held-out 20 %: 89.5 % vs 84.5 %).
 """
 from pathlib import Path
 
@@ -106,7 +108,7 @@ def predict_SPT_class(train_data_path, pred_data_path, exptName, level, feature_
         pred_data_path (str): complete path to the *_tracksRG.csv features file that needs predictions.
         exptName (str): written to the 'Experiment' column.
         level (str): suffix of the output name.
-        feature_transform (str): "boxcox" or "none" (legacy); default pipeline_defaults.FEATURE_TRANSFORM.
+        feature_transform (str): "none" or "boxcox"; default pipeline_defaults.FEATURE_TRANSFORM.
 
     Output:
         <pred_data_path stem>_SVMPredicted<level>.csv next to the input: the input table plus 'Experiment' and 'SVM'.

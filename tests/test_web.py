@@ -121,7 +121,7 @@ def test_static_export_holds_no_lab_data(tmp_path):
 
 def test_svm_feature_transform_option():
     info = client.get("/api/info").json()
-    assert info["defaults"]["feature_transform"] == "boxcox" and info["feature_transforms"] == ["boxcox", "none"]
+    assert info["defaults"]["feature_transform"] == "none" and info["feature_transforms"] == ["none", "boxcox"]
     r = client.post("/api/run", data={"step_link": "1", "feature_transform": "log"},
                     files={"file": ("l.csv", _locs_csv(), "text/csv")})
     assert r.status_code == 400 and "feature transform" in r.json()["detail"]
